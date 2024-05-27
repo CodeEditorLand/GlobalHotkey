@@ -338,7 +338,7 @@ fn parse_key(key: &str) -> Result<Code, HotKeyParseError> {
         "MEDIAPLAYPAUSE" => Ok(MediaPlayPause),
         "MEDIASTOP" => Ok(MediaStop),
         "MEDIATRACKNEXT" => Ok(MediaTrackNext),
-        "MEDIATRACTPREV" | "MEDIATRACTPREVIOUS" => Ok(MediaTrackPrevious),
+        "MEDIATRACKPREV" | "MEDIATRACKPREVIOUS" => Ok(MediaTrackPrevious),
         "F13" => Ok(F13),
         "F14" => Ok(F14),
         "F15" => Ok(F15),
