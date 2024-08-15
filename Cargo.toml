@@ -1,6 +1,6 @@
 [package]
 name = "global-hotkey"
-version = "0.5.5"
+version = "0.6.0"
 description = "Global hotkeys for Desktop Applications"
 edition = "2021"
 keywords = ["windowing", "global", "global-hotkey", "hotkey"]
@@ -22,11 +22,11 @@ serde = { version = "1", optional = true, features = ["derive"] }
 
 [target."cfg(target_os = \"macos\")".dependencies]
 bitflags = "2"
-cocoa = "0.25"
+cocoa = "0.26"
 objc = "0.2"
 
 [target."cfg(target_os = \"windows\")".dependencies.windows-sys]
-version = "0.52"
+version = "0.59"
 features = [
 	"Win32_UI_WindowsAndMessaging",
 	"Win32_Foundation",

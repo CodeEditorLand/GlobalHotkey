@@ -10,7 +10,7 @@ use windows_sys::Win32::{
     UI::{
         Input::KeyboardAndMouse::*,
         WindowsAndMessaging::{
-            CreateWindowExW, DefWindowProcW, DestroyWindow, RegisterClassW, CW_USEDEFAULT, HMENU,
+            CreateWindowExW, DefWindowProcW, DestroyWindow, RegisterClassW, CW_USEDEFAULT,
             WM_HOTKEY, WNDCLASSW, WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW,
             WS_EX_TRANSPARENT, WS_OVERLAPPED,
         },
@@ -20,7 +20,7 @@ use windows_sys::Win32::{
 use crate::{hotkey::HotKey, GlobalHotKeyEvent};
 
 pub struct GlobalHotKeyManager {
-    hwnd: isize,
+    hwnd: HWND,
 }
 
 impl Drop for GlobalHotKeyManager {
@@ -61,12 +61,12 @@ impl GlobalHotKeyManager {
                 0,
                 CW_USEDEFAULT,
                 0,
-                HWND::default(),
-                HMENU::default(),
+                std::ptr::null_mut(),
+                std::ptr::null_mut(),
                 hinstance,
                 std::ptr::null_mut(),
             );
-            if hwnd == 0 {
+            if hwnd.is_null() {
                 return Err(crate::Error::OsError(std::io::Error::last_os_error()));
             }
 
