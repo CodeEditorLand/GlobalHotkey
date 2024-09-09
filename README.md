@@ -2,17 +2,14 @@ global_hotkey lets you register Global HotKeys for Desktop Applications.
 
 ## Platforms-supported:
 
--   Windows
--   macOS
--   Linux (X11 Only)
+- Windows
+- macOS
+- Linux (X11 Only)
 
 ## Platform-specific notes:
 
--   On Windows a win32 event loop must be running on the thread. It doesn't need
-    to be the main thread but you have to create the global hotkey manager on
-    the same thread as the event loop.
--   On macOS, an event loop must be running on the main thread so you also need
-    to create the global hotkey manager on the main thread.
+- On Windows a win32 event loop must be running on the thread. It doesn't need to be the main thread but you have to create the global hotkey manager on the same thread as the event loop.
+- On macOS, an event loop must be running on the main thread so you also need to create the global hotkey manager on the main thread.
 
 ## Example
 
@@ -31,8 +28,7 @@ manager.register(hotkey);
 
 ## Processing global hotkey events
 
-You can also listen for the menu events using `GlobalHotKeyEvent::receiver` to
-get events for the hotkey pressed events.
+You can also listen for the menu events using `GlobalHotKeyEvent::receiver` to get events for the hotkey pressed events.
 
 ```rs
 use global_hotkey::GlobalHotKeyEvent;
