@@ -10,29 +10,29 @@ use crate::hotkey::HotKey;
 pub struct GlobalHotKeyManager {}
 
 impl GlobalHotKeyManager {
-    pub fn new() -> crate::Result<Self> {
-        Ok(Self {})
-    }
+	pub fn new() -> crate::Result<Self> {
+		Ok(Self {})
+	}
 
-    pub fn register(&self, hotkey: HotKey) -> crate::Result<()> {
-        Ok(())
-    }
+	pub fn register(&self, hotkey: HotKey) -> crate::Result<()> {
+		Ok(())
+	}
 
-    pub fn unregister(&self, hotkey: HotKey) -> crate::Result<()> {
-        Ok(())
-    }
+	pub fn unregister(&self, hotkey: HotKey) -> crate::Result<()> {
+		Ok(())
+	}
 
-    pub fn register_all(&self, hotkeys: &[HotKey]) -> crate::Result<()> {
-        for hotkey in hotkeys {
-            self.register(*hotkey)?;
-        }
-        Ok(())
-    }
+	pub fn register_all(&self, hotkeys: &[HotKey]) -> crate::Result<()> {
+		for hotkey in hotkeys {
+			self.register(*hotkey)?;
+		}
+		Ok(())
+	}
 
-    pub fn unregister_all(&self, hotkeys: &[HotKey]) -> crate::Result<()> {
-        for hotkey in hotkeys {
-            self.unregister(*hotkey)?;
-        }
-        Ok(())
-    }
+	pub fn unregister_all(&self, hotkeys: &[HotKey]) -> crate::Result<()> {
+		for hotkey in hotkeys {
+			self.unregister(*hotkey)?;
+		}
+		Ok(())
+	}
 }
