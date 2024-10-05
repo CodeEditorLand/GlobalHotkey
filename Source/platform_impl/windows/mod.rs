@@ -10,9 +10,18 @@ use windows_sys::Win32::{
 	UI::{
 		Input::KeyboardAndMouse::*,
 		WindowsAndMessaging::{
-			CreateWindowExW, DefWindowProcW, DestroyWindow, RegisterClassW, CW_USEDEFAULT,
-			WM_HOTKEY, WNDCLASSW, WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW,
-			WS_EX_TRANSPARENT, WS_OVERLAPPED,
+			CreateWindowExW,
+			DefWindowProcW,
+			DestroyWindow,
+			RegisterClassW,
+			CW_USEDEFAULT,
+			WM_HOTKEY,
+			WNDCLASSW,
+			WS_EX_LAYERED,
+			WS_EX_NOACTIVATE,
+			WS_EX_TOOLWINDOW,
+			WS_EX_TRANSPARENT,
+			WS_OVERLAPPED,
 		},
 	},
 };
@@ -20,13 +29,11 @@ use windows_sys::Win32::{
 use crate::{hotkey::HotKey, GlobalHotKeyEvent};
 
 pub struct GlobalHotKeyManager {
-	hwnd: HWND,
+	hwnd:HWND,
 }
 
 impl Drop for GlobalHotKeyManager {
-	fn drop(&mut self) {
-		unsafe { DestroyWindow(self.hwnd) };
-	}
+	fn drop(&mut self) { unsafe { DestroyWindow(self.hwnd) }; }
 }
 
 impl GlobalHotKeyManager {
@@ -36,9 +43,9 @@ impl GlobalHotKeyManager {
 			let hinstance = get_instance_handle();
 
 			let wnd_class = WNDCLASSW {
-				lpfnWndProc: Some(global_hotkey_proc),
-				lpszClassName: class_name.as_ptr(),
-				hInstance: hinstance,
+				lpfnWndProc:Some(global_hotkey_proc),
+				lpszClassName:class_name.as_ptr(),
+				hInstance:hinstance,
 				..std::mem::zeroed()
 			};
 
@@ -67,14 +74,16 @@ impl GlobalHotKeyManager {
 				std::ptr::null_mut(),
 			);
 			if hwnd.is_null() {
-				return Err(crate::Error::OsError(std::io::Error::last_os_error()));
+				return Err(crate::Error::OsError(
+					std::io::Error::last_os_error(),
+				));
 			}
 
 			Ok(Self { hwnd })
 		}
 	}
 
-	pub fn register(&self, hotkey: HotKey) -> crate::Result<()> {
+	pub fn register(&self, hotkey:HotKey) -> crate::Result<()> {
 		let mut mods = MOD_NOREPEAT;
 		if hotkey.mods.contains(Modifiers::SHIFT) {
 			mods |= MOD_SHIFT;
@@ -92,24 +101,31 @@ impl GlobalHotKeyManager {
 		// get key scan code
 		match key_to_vk(&hotkey.key) {
 			Some(vk_code) => {
-				let result =
-					unsafe { RegisterHotKey(self.hwnd, hotkey.id() as _, mods, vk_code as _) };
+				let result = unsafe {
+					RegisterHotKey(
+						self.hwnd,
+						hotkey.id() as _,
+						mods,
+						vk_code as _,
+					)
+				};
 				if result == 0 {
 					return Err(crate::Error::AlreadyRegistered(hotkey));
 				}
-			}
+			},
 			_ => {
 				return Err(crate::Error::FailedToRegister(format!(
-					"Unable to register hotkey (unknown VKCode for this key: {}).",
+					"Unable to register hotkey (unknown VKCode for this key: \
+					 {}).",
 					hotkey.key
-				)))
-			}
+				)));
+			},
 		}
 
 		Ok(())
 	}
 
-	pub fn unregister(&self, hotkey: HotKey) -> crate::Result<()> {
+	pub fn unregister(&self, hotkey:HotKey) -> crate::Result<()> {
 		let result = unsafe { UnregisterHotKey(self.hwnd, hotkey.id() as _) };
 		if result == 0 {
 			return Err(crate::Error::FailedToUnRegister(hotkey));
@@ -117,14 +133,14 @@ impl GlobalHotKeyManager {
 		Ok(())
 	}
 
-	pub fn register_all(&self, hotkeys: &[HotKey]) -> crate::Result<()> {
+	pub fn register_all(&self, hotkeys:&[HotKey]) -> crate::Result<()> {
 		for hotkey in hotkeys {
 			self.register(*hotkey)?;
 		}
 		Ok(())
 	}
 
-	pub fn unregister_all(&self, hotkeys: &[HotKey]) -> crate::Result<()> {
+	pub fn unregister_all(&self, hotkeys:&[HotKey]) -> crate::Result<()> {
 		for hotkey in hotkeys {
 			self.unregister(*hotkey)?;
 		}
@@ -132,24 +148,26 @@ impl GlobalHotKeyManager {
 	}
 }
 unsafe extern "system" fn global_hotkey_proc(
-	hwnd: HWND,
-	msg: u32,
-	wparam: WPARAM,
-	lparam: LPARAM,
+	hwnd:HWND,
+	msg:u32,
+	wparam:WPARAM,
+	lparam:LPARAM,
 ) -> LRESULT {
 	if msg == WM_HOTKEY {
 		GlobalHotKeyEvent::send(GlobalHotKeyEvent {
-			id: wparam as _,
-			state: crate::HotKeyState::Pressed,
+			id:wparam as _,
+			state:crate::HotKeyState::Pressed,
 		});
-		std::thread::spawn(move || loop {
-			let state = GetAsyncKeyState(HIWORD(lparam as u32) as i32);
-			if state == 0 {
-				GlobalHotKeyEvent::send(GlobalHotKeyEvent {
-					id: wparam as _,
-					state: crate::HotKeyState::Released,
-				});
-				break;
+		std::thread::spawn(move || {
+			loop {
+				let state = GetAsyncKeyState(HIWORD(lparam as u32) as i32);
+				if state == 0 {
+					GlobalHotKeyEvent::send(GlobalHotKeyEvent {
+						id:wparam as _,
+						state:crate::HotKeyState::Released,
+					});
+					break;
+				}
 			}
 		});
 	}
@@ -159,11 +177,9 @@ unsafe extern "system" fn global_hotkey_proc(
 
 #[inline(always)]
 #[allow(non_snake_case)]
-const fn HIWORD(x: u32) -> u16 {
-	((x >> 16) & 0xFFFF) as u16
-}
+const fn HIWORD(x:u32) -> u16 { ((x >> 16) & 0xFFFF) as u16 }
 
-pub fn encode_wide<S: AsRef<std::ffi::OsStr>>(string: S) -> Vec<u16> {
+pub fn encode_wide<S:AsRef<std::ffi::OsStr>>(string:S) -> Vec<u16> {
 	std::os::windows::prelude::OsStrExt::encode_wide(string.as_ref())
 		.chain(std::iter::once(0))
 		.collect()
@@ -174,18 +190,19 @@ pub fn get_instance_handle() -> windows_sys::Win32::Foundation::HMODULE {
 	// pseudo-variable created by the microsoft linker:
 	// https://devblogs.microsoft.com/oldnewthing/20041025-00/?p=37483
 
-	// This is preferred over GetModuleHandle(NULL) because it also works in DLLs:
-	// https://stackoverflow.com/questions/21718027/getmodulehandlenull-vs-hinstance
+	// This is preferred over GetModuleHandle(NULL) because it also works in
+	// DLLs: https://stackoverflow.com/questions/21718027/getmodulehandlenull-vs-hinstance
 
 	extern {
-		static __ImageBase: windows_sys::Win32::System::SystemServices::IMAGE_DOS_HEADER;
+		static __ImageBase:
+			windows_sys::Win32::System::SystemServices::IMAGE_DOS_HEADER;
 	}
 
 	unsafe { &__ImageBase as *const _ as _ }
 }
 
 // used to build accelerators table from Key
-fn key_to_vk(key: &Code) -> Option<VIRTUAL_KEY> {
+fn key_to_vk(key:&Code) -> Option<VIRTUAL_KEY> {
 	Some(match key {
 		Code::KeyA => VK_A,
 		Code::KeyB => VK_B,

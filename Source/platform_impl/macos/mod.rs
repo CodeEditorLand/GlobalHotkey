@@ -1,6 +1,3 @@
-use keyboard_types::{Code, Modifiers};
-use objc2::{msg_send_id, rc::Retained, ClassType};
-use objc2_app_kit::{NSEvent, NSEventModifierFlags, NSEventSubtype, NSEventType};
 use std::{
 	collections::{BTreeMap, HashSet},
 	ffi::c_void,
@@ -8,33 +5,72 @@ use std::{
 	sync::{Arc, Mutex},
 };
 
-use crate::{
-	hotkey::HotKey,
-	platform_impl::platform::ffi::{
-		kCFAllocatorDefault, kCFRunLoopCommonModes, CFMachPortCreateRunLoopSource,
-		CFRunLoopAddSource, CFRunLoopGetMain, CGEventMask, CGEventRef, CGEventTapCreate,
-		CGEventTapEnable, CGEventTapLocation, CGEventTapOptions, CGEventTapPlacement,
-		CGEventTapProxy, CGEventType,
-	},
-	CGEventMaskBit, GlobalHotKeyEvent,
+use keyboard_types::{Code, Modifiers};
+use objc2::{msg_send_id, rc::Retained, ClassType};
+use objc2_app_kit::{
+	NSEvent,
+	NSEventModifierFlags,
+	NSEventSubtype,
+	NSEventType,
 };
 
 use self::ffi::{
-	kEventClassKeyboard, kEventHotKeyPressed, kEventHotKeyReleased, kEventParamDirectObject, noErr,
-	typeEventHotKeyID, CFMachPortInvalidate, CFMachPortRef, CFRelease, CFRunLoopRemoveSource,
-	CFRunLoopSourceRef, EventHandlerCallRef, EventHandlerRef, EventHotKeyID, EventHotKeyRef,
-	EventRef, EventTypeSpec, GetApplicationEventTarget, GetEventKind, GetEventParameter,
-	InstallEventHandler, OSStatus, RegisterEventHotKey, RemoveEventHandler, UnregisterEventHotKey,
+	kEventClassKeyboard,
+	kEventHotKeyPressed,
+	kEventHotKeyReleased,
+	kEventParamDirectObject,
+	noErr,
+	typeEventHotKeyID,
+	CFMachPortInvalidate,
+	CFMachPortRef,
+	CFRelease,
+	CFRunLoopRemoveSource,
+	CFRunLoopSourceRef,
+	EventHandlerCallRef,
+	EventHandlerRef,
+	EventHotKeyID,
+	EventHotKeyRef,
+	EventRef,
+	EventTypeSpec,
+	GetApplicationEventTarget,
+	GetEventKind,
+	GetEventParameter,
+	InstallEventHandler,
+	OSStatus,
+	RegisterEventHotKey,
+	RemoveEventHandler,
+	UnregisterEventHotKey,
+};
+use crate::{
+	hotkey::HotKey,
+	platform_impl::platform::ffi::{
+		kCFAllocatorDefault,
+		kCFRunLoopCommonModes,
+		CFMachPortCreateRunLoopSource,
+		CFRunLoopAddSource,
+		CFRunLoopGetMain,
+		CGEventMask,
+		CGEventRef,
+		CGEventTapCreate,
+		CGEventTapEnable,
+		CGEventTapLocation,
+		CGEventTapOptions,
+		CGEventTapPlacement,
+		CGEventTapProxy,
+		CGEventType,
+	},
+	CGEventMaskBit,
+	GlobalHotKeyEvent,
 };
 
 mod ffi;
 
 pub struct GlobalHotKeyManager {
-	event_handler_ptr: EventHandlerRef,
-	hotkeys: Mutex<BTreeMap<u32, HotKeyWrapper>>,
-	event_tap: Mutex<Option<CFMachPortRef>>,
-	event_tap_source: Mutex<Option<CFRunLoopSourceRef>>,
-	media_hotkeys: Arc<Mutex<HashSet<HotKey>>>,
+	event_handler_ptr:EventHandlerRef,
+	hotkeys:Mutex<BTreeMap<u32, HotKeyWrapper>>,
+	event_tap:Mutex<Option<CFMachPortRef>>,
+	event_tap_source:Mutex<Option<CFRunLoopSourceRef>>,
+	media_hotkeys:Arc<Mutex<HashSet<HotKey>>>,
 }
 
 unsafe impl Send for GlobalHotKeyManager {}
@@ -42,14 +78,18 @@ unsafe impl Sync for GlobalHotKeyManager {}
 
 impl GlobalHotKeyManager {
 	pub fn new() -> crate::Result<Self> {
-		let pressed_event_type =
-			EventTypeSpec { eventClass: kEventClassKeyboard, eventKind: kEventHotKeyPressed };
-		let released_event_type =
-			EventTypeSpec { eventClass: kEventClassKeyboard, eventKind: kEventHotKeyReleased };
+		let pressed_event_type = EventTypeSpec {
+			eventClass:kEventClassKeyboard,
+			eventKind:kEventHotKeyPressed,
+		};
+		let released_event_type = EventTypeSpec {
+			eventClass:kEventClassKeyboard,
+			eventKind:kEventHotKeyReleased,
+		};
 		let event_types = [pressed_event_type, released_event_type];
 
 		let ptr = unsafe {
-			let mut handler_ref: EventHandlerRef = std::mem::zeroed();
+			let mut handler_ref:EventHandlerRef = std::mem::zeroed();
 
 			let result = InstallEventHandler(
 				GetApplicationEventTarget(),
@@ -61,23 +101,25 @@ impl GlobalHotKeyManager {
 			);
 
 			if result != noErr as _ {
-				return Err(crate::Error::OsError(std::io::Error::last_os_error()));
+				return Err(crate::Error::OsError(
+					std::io::Error::last_os_error(),
+				));
 			}
 
 			handler_ref
 		};
 
 		Ok(Self {
-			event_handler_ptr: ptr,
-			hotkeys: Mutex::new(BTreeMap::new()),
-			event_tap: Mutex::new(None),
-			event_tap_source: Mutex::new(None),
-			media_hotkeys: Arc::new(Mutex::new(HashSet::new())),
+			event_handler_ptr:ptr,
+			hotkeys:Mutex::new(BTreeMap::new()),
+			event_tap:Mutex::new(None),
+			event_tap_source:Mutex::new(None),
+			media_hotkeys:Arc::new(Mutex::new(HashSet::new())),
 		})
 	}
 
-	pub fn register(&self, hotkey: HotKey) -> crate::Result<()> {
-		let mut mods: u32 = 0;
+	pub fn register(&self, hotkey:HotKey) -> crate::Result<()> {
+		let mut mods:u32 = 0;
 		if hotkey.mods.contains(Modifiers::SHIFT) {
 			mods |= 512;
 		}
@@ -93,12 +135,13 @@ impl GlobalHotKeyManager {
 
 		if let Some(scan_code) = key_to_scancode(hotkey.key) {
 			let hotkey_id = EventHotKeyID {
-				id: hotkey.id(),
-				signature: {
-					let mut res: u32 = 0;
-					// can't find a resource for "htrs" so we construct it manually
-					// the construction method below is taken from https://github.com/soffes/HotKey/blob/c13662730cb5bc28de4a799854bbb018a90649bf/Sources/HotKey/HotKeysController.swift#L27
-					// and confirmed by applying the same method to `kEventParamDragRef` which is equal to `drag` in C
+				id:hotkey.id(),
+				signature:{
+					let mut res:u32 = 0;
+					// can't find a resource for "htrs" so we construct it
+					// manually the construction method below is taken from https://github.com/soffes/HotKey/blob/c13662730cb5bc28de4a799854bbb018a90649bf/Sources/HotKey/HotKeysController.swift#L27
+					// and confirmed by applying the same method to
+					// `kEventParamDragRef` which is equal to `drag` in C
 					// and converted to `1685217639` by rust-bindgen.
 					for c in "htrs".chars() {
 						res = (res << 8) + c as u32;
@@ -108,7 +151,7 @@ impl GlobalHotKeyManager {
 			};
 
 			let ptr = unsafe {
-				let mut hotkey_ref: EventHotKeyRef = std::mem::zeroed();
+				let mut hotkey_ref:EventHotKeyRef = std::mem::zeroed();
 				let result = RegisterEventHotKey(
 					scan_code,
 					mods,
@@ -128,7 +171,10 @@ impl GlobalHotKeyManager {
 				hotkey_ref
 			};
 
-			self.hotkeys.lock().unwrap().insert(hotkey.id(), HotKeyWrapper { ptr, hotkey });
+			self.hotkeys
+				.lock()
+				.unwrap()
+				.insert(hotkey.id(), HotKeyWrapper { ptr, hotkey });
 			Ok(())
 		} else if is_media_key(hotkey.key) {
 			{
@@ -140,34 +186,37 @@ impl GlobalHotKeyManager {
 			self.start_watching_media_keys()
 		} else {
 			Err(crate::Error::FailedToRegister(format!(
-				"Unable to register accelerator (unknown scancode for this key: {}).",
+				"Unable to register accelerator (unknown scancode for this \
+				 key: {}).",
 				hotkey.key
 			)))
 		}
 	}
 
-	pub fn unregister(&self, hotkey: HotKey) -> crate::Result<()> {
+	pub fn unregister(&self, hotkey:HotKey) -> crate::Result<()> {
 		if is_media_key(hotkey.key) {
 			let mut media_hotkey = self.media_hotkeys.lock().unwrap();
 			media_hotkey.remove(&hotkey);
 			if media_hotkey.is_empty() {
 				self.stop_watching_media_keys();
 			}
-		} else if let Some(hotkeywrapper) = self.hotkeys.lock().unwrap().remove(&hotkey.id()) {
+		} else if let Some(hotkeywrapper) =
+			self.hotkeys.lock().unwrap().remove(&hotkey.id())
+		{
 			unsafe { self.unregister_hotkey_ptr(hotkeywrapper.ptr, hotkey) }?;
 		}
 
 		Ok(())
 	}
 
-	pub fn register_all(&self, hotkeys: &[HotKey]) -> crate::Result<()> {
+	pub fn register_all(&self, hotkeys:&[HotKey]) -> crate::Result<()> {
 		for hotkey in hotkeys {
 			self.register(*hotkey)?;
 		}
 		Ok(())
 	}
 
-	pub fn unregister_all(&self, hotkeys: &[HotKey]) -> crate::Result<()> {
+	pub fn unregister_all(&self, hotkeys:&[HotKey]) -> crate::Result<()> {
 		for hotkey in hotkeys {
 			self.unregister(*hotkey)?;
 		}
@@ -176,8 +225,8 @@ impl GlobalHotKeyManager {
 
 	unsafe fn unregister_hotkey_ptr(
 		&self,
-		ptr: EventHotKeyRef,
-		hotkey: HotKey,
+		ptr:EventHotKeyRef,
+		hotkey:HotKey,
 	) -> crate::Result<()> {
 		if UnregisterEventHotKey(ptr) != noErr as _ {
 			return Err(crate::Error::FailedToUnRegister(hotkey));
@@ -195,7 +244,8 @@ impl GlobalHotKeyManager {
 		}
 
 		unsafe {
-			let event_mask: CGEventMask = CGEventMaskBit!(CGEventType::SystemDefined);
+			let event_mask:CGEventMask =
+				CGEventMaskBit!(CGEventType::SystemDefined);
 			let tap = CGEventTapCreate(
 				CGEventTapLocation::Session,
 				CGEventTapPlacement::HeadInsertEventTap,
@@ -209,7 +259,8 @@ impl GlobalHotKeyManager {
 			}
 			*event_tap = Some(tap);
 
-			let loop_source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0);
+			let loop_source =
+				CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0);
 			if loop_source.is_null() {
 				// cleanup event_tap
 				CFMachPortInvalidate(tap);
@@ -230,9 +281,15 @@ impl GlobalHotKeyManager {
 
 	fn stop_watching_media_keys(&self) {
 		unsafe {
-			if let Some(event_tap_source) = self.event_tap_source.lock().unwrap().take() {
+			if let Some(event_tap_source) =
+				self.event_tap_source.lock().unwrap().take()
+			{
 				let run_loop = CFRunLoopGetMain();
-				CFRunLoopRemoveSource(run_loop, event_tap_source, kCFRunLoopCommonModes);
+				CFRunLoopRemoveSource(
+					run_loop,
+					event_tap_source,
+					kCFRunLoopCommonModes,
+				);
 				CFRelease(event_tap_source as *const c_void);
 			}
 			if let Some(event_tap) = self.event_tap.lock().unwrap().take() {
@@ -256,7 +313,7 @@ enum NX_KEYTYPE {
 impl TryFrom<isize> for NX_KEYTYPE {
 	type Error = String;
 
-	fn try_from(value: isize) -> Result<Self, Self::Error> {
+	fn try_from(value:isize) -> Result<Self, Self::Error> {
 		match value {
 			16 => Ok(NX_KEYTYPE::Play),
 			17 => Ok(NX_KEYTYPE::Next),
@@ -269,7 +326,7 @@ impl TryFrom<isize> for NX_KEYTYPE {
 }
 
 impl From<NX_KEYTYPE> for Code {
-	fn from(nx_keytype: NX_KEYTYPE) -> Self {
+	fn from(nx_keytype:NX_KEYTYPE) -> Self {
 		match nx_keytype {
 			NX_KEYTYPE::Play => Code::MediaPlayPause,
 			NX_KEYTYPE::Next => Code::MediaTrackNext,
@@ -294,11 +351,11 @@ impl Drop for GlobalHotKeyManager {
 }
 
 unsafe extern fn hotkey_handler(
-	_next_handler: EventHandlerCallRef,
-	event: EventRef,
-	_user_data: *mut c_void,
+	_next_handler:EventHandlerCallRef,
+	event:EventRef,
+	_user_data:*mut c_void,
 ) -> OSStatus {
-	let mut event_hotkey: EventHotKeyID = std::mem::zeroed();
+	let mut event_hotkey:EventHotKeyID = std::mem::zeroed();
 
 	let result = GetEventParameter(
 		event,
@@ -314,16 +371,20 @@ unsafe extern fn hotkey_handler(
 		let event_kind = GetEventKind(event);
 		match event_kind {
 			#[allow(non_upper_case_globals)]
-			kEventHotKeyPressed => GlobalHotKeyEvent::send(GlobalHotKeyEvent {
-				id: event_hotkey.id,
-				state: crate::HotKeyState::Pressed,
-			}),
+			kEventHotKeyPressed => {
+				GlobalHotKeyEvent::send(GlobalHotKeyEvent {
+					id:event_hotkey.id,
+					state:crate::HotKeyState::Pressed,
+				})
+			},
 			#[allow(non_upper_case_globals)]
-			kEventHotKeyReleased => GlobalHotKeyEvent::send(GlobalHotKeyEvent {
-				id: event_hotkey.id,
-				state: crate::HotKeyState::Released,
-			}),
-			_ => {}
+			kEventHotKeyReleased => {
+				GlobalHotKeyEvent::send(GlobalHotKeyEvent {
+					id:event_hotkey.id,
+					state:crate::HotKeyState::Released,
+				})
+			},
+			_ => {},
 		};
 	}
 
@@ -331,20 +392,23 @@ unsafe extern fn hotkey_handler(
 }
 
 unsafe extern fn media_key_event_callback(
-	_proxy: CGEventTapProxy,
-	ev_type: CGEventType,
-	event: CGEventRef,
-	user_info: *const c_void,
+	_proxy:CGEventTapProxy,
+	ev_type:CGEventType,
+	event:CGEventRef,
+	user_info:*const c_void,
 ) -> CGEventRef {
 	if ev_type != CGEventType::SystemDefined {
 		return event;
 	}
 
-	let ns_event: Retained<NSEvent> = msg_send_id![NSEvent::class(), eventWithCGEvent: event];
+	let ns_event:Retained<NSEvent> =
+		msg_send_id![NSEvent::class(), eventWithCGEvent: event];
 	let event_type = ns_event.r#type();
 	let event_subtype = ns_event.subtype();
 
-	if event_type == NSEventType::SystemDefined && event_subtype == NSEventSubtype::ScreenChanged {
+	if event_type == NSEventType::SystemDefined
+		&& event_subtype == NSEventSubtype::ScreenChanged
+	{
 		// Key
 		let data_1 = ns_event.data1();
 		let nx_keytype = NX_KEYTYPE::try_from((data_1 & 0xFFFF0000) >> 16);
@@ -377,10 +441,10 @@ unsafe extern fn media_key_event_callback(
 
 		if let Some(media_hotkey) = media_hotkeys.lock().unwrap().get(&hotkey) {
 			let key_flags = data_1 & 0x0000FFFF;
-			let is_pressed: bool = ((key_flags & 0xFF00) >> 8) == 0xA;
+			let is_pressed:bool = ((key_flags & 0xFF00) >> 8) == 0xA;
 			GlobalHotKeyEvent::send(GlobalHotKeyEvent {
-				id: media_hotkey.id(),
-				state: match is_pressed {
+				id:media_hotkey.id(),
+				state:match is_pressed {
 					true => crate::HotKeyState::Pressed,
 					false => crate::HotKeyState::Released,
 				},
@@ -396,13 +460,16 @@ unsafe extern fn media_key_event_callback(
 
 #[derive(Clone, Copy, Debug)]
 struct HotKeyWrapper {
-	ptr: EventHotKeyRef,
-	hotkey: HotKey,
+	ptr:EventHotKeyRef,
+	hotkey:HotKey,
 }
 
 // https://macbiblioblog.blogspot.com/2014/12/key-codes-for-function-and-special-keys.html
-// can also be found in /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/System/Library/Frameworks/Carbon.framework/Versions/A/Frameworks/HIToolbox.framework/Versions/A/Headers/Events.h
-pub fn key_to_scancode(code: Code) -> Option<u32> {
+// can also be found in
+// /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/
+// Developer/SDKs/MacOSX10.10.sdk/System/Library/Frameworks/Carbon.framework/
+// Versions/A/Frameworks/HIToolbox.framework/Versions/A/Headers/Events.h
+pub fn key_to_scancode(code:Code) -> Option<u32> {
 	match code {
 		Code::KeyA => Some(0x00),
 		Code::KeyS => Some(0x01),
@@ -414,11 +481,11 @@ pub fn key_to_scancode(code: Code) -> Option<u32> {
 		Code::KeyX => Some(0x07),
 		Code::KeyC => Some(0x08),
 		Code::KeyV => Some(0x09),
-		Code::KeyB => Some(0x0b),
-		Code::KeyQ => Some(0x0c),
-		Code::KeyW => Some(0x0d),
-		Code::KeyE => Some(0x0e),
-		Code::KeyR => Some(0x0f),
+		Code::KeyB => Some(0x0B),
+		Code::KeyQ => Some(0x0C),
+		Code::KeyW => Some(0x0D),
+		Code::KeyE => Some(0x0E),
+		Code::KeyR => Some(0x0F),
 		Code::KeyY => Some(0x10),
 		Code::KeyT => Some(0x11),
 		Code::Digit1 => Some(0x12),
@@ -429,12 +496,12 @@ pub fn key_to_scancode(code: Code) -> Option<u32> {
 		Code::Digit5 => Some(0x17),
 		Code::Equal => Some(0x18),
 		Code::Digit9 => Some(0x19),
-		Code::Digit7 => Some(0x1a),
-		Code::Minus => Some(0x1b),
-		Code::Digit8 => Some(0x1c),
-		Code::Digit0 => Some(0x1d),
-		Code::BracketRight => Some(0x1e),
-		Code::KeyO => Some(0x1f),
+		Code::Digit7 => Some(0x1A),
+		Code::Minus => Some(0x1B),
+		Code::Digit8 => Some(0x1C),
+		Code::Digit0 => Some(0x1D),
+		Code::BracketRight => Some(0x1E),
+		Code::KeyO => Some(0x1F),
 		Code::KeyU => Some(0x20),
 		Code::BracketLeft => Some(0x21),
 		Code::KeyI => Some(0x22),
@@ -445,12 +512,12 @@ pub fn key_to_scancode(code: Code) -> Option<u32> {
 		Code::Quote => Some(0x27),
 		Code::KeyK => Some(0x28),
 		Code::Semicolon => Some(0x29),
-		Code::Backslash => Some(0x2a),
-		Code::Comma => Some(0x2b),
-		Code::Slash => Some(0x2c),
-		Code::KeyN => Some(0x2d),
-		Code::KeyM => Some(0x2e),
-		Code::Period => Some(0x2f),
+		Code::Backslash => Some(0x2A),
+		Code::Comma => Some(0x2B),
+		Code::Slash => Some(0x2C),
+		Code::KeyN => Some(0x2D),
+		Code::KeyM => Some(0x2E),
+		Code::Period => Some(0x2F),
 		Code::Tab => Some(0x30),
 		Code::Space => Some(0x31),
 		Code::Backquote => Some(0x32),
@@ -463,11 +530,11 @@ pub fn key_to_scancode(code: Code) -> Option<u32> {
 		Code::NumLock => Some(0x47),
 		Code::AudioVolumeUp => Some(0x48),
 		Code::AudioVolumeDown => Some(0x49),
-		Code::AudioVolumeMute => Some(0x4a),
-		Code::NumpadDivide => Some(0x4b),
-		Code::NumpadEnter => Some(0x4c),
-		Code::NumpadSubtract => Some(0x4e),
-		Code::F18 => Some(0x4f),
+		Code::AudioVolumeMute => Some(0x4A),
+		Code::NumpadDivide => Some(0x4B),
+		Code::NumpadEnter => Some(0x4C),
+		Code::NumpadSubtract => Some(0x4E),
+		Code::F18 => Some(0x4F),
 		Code::F19 => Some(0x50),
 		Code::NumpadEqual => Some(0x51),
 		Code::Numpad0 => Some(0x52),
@@ -478,9 +545,9 @@ pub fn key_to_scancode(code: Code) -> Option<u32> {
 		Code::Numpad5 => Some(0x57),
 		Code::Numpad6 => Some(0x58),
 		Code::Numpad7 => Some(0x59),
-		Code::F20 => Some(0x5a),
-		Code::Numpad8 => Some(0x5b),
-		Code::Numpad9 => Some(0x5c),
+		Code::F20 => Some(0x5A),
+		Code::Numpad8 => Some(0x5B),
+		Code::Numpad9 => Some(0x5C),
 		Code::F5 => Some(0x60),
 		Code::F6 => Some(0x61),
 		Code::F7 => Some(0x62),
@@ -489,10 +556,10 @@ pub fn key_to_scancode(code: Code) -> Option<u32> {
 		Code::F9 => Some(0x65),
 		Code::F11 => Some(0x67),
 		Code::F13 => Some(0x69),
-		Code::F16 => Some(0x6a),
-		Code::F14 => Some(0x6b),
-		Code::F10 => Some(0x6d),
-		Code::F12 => Some(0x6f),
+		Code::F16 => Some(0x6A),
+		Code::F14 => Some(0x6B),
+		Code::F10 => Some(0x6D),
+		Code::F12 => Some(0x6F),
 		Code::F15 => Some(0x71),
 		Code::Insert => Some(0x72),
 		Code::Home => Some(0x73),
@@ -502,18 +569,18 @@ pub fn key_to_scancode(code: Code) -> Option<u32> {
 		Code::End => Some(0x77),
 		Code::F2 => Some(0x78),
 		Code::PageDown => Some(0x79),
-		Code::F1 => Some(0x7a),
-		Code::ArrowLeft => Some(0x7b),
-		Code::ArrowRight => Some(0x7c),
-		Code::ArrowDown => Some(0x7d),
-		Code::ArrowUp => Some(0x7e),
+		Code::F1 => Some(0x7A),
+		Code::ArrowLeft => Some(0x7B),
+		Code::ArrowRight => Some(0x7C),
+		Code::ArrowDown => Some(0x7D),
+		Code::ArrowUp => Some(0x7E),
 		Code::CapsLock => Some(0x39),
 		Code::PrintScreen => Some(0x46),
 		_ => None,
 	}
 }
 
-fn is_media_key(code: Code) -> bool {
+fn is_media_key(code:Code) -> bool {
 	matches!(
 		code,
 		Code::MediaPlayPause
