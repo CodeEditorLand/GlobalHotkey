@@ -74,9 +74,7 @@ impl GlobalHotKeyManager {
 				std::ptr::null_mut(),
 			);
 			if hwnd.is_null() {
-				return Err(crate::Error::OsError(
-					std::io::Error::last_os_error(),
-				));
+				return Err(crate::Error::OsError(std::io::Error::last_os_error()));
 			}
 
 			Ok(Self { hwnd })
@@ -101,22 +99,15 @@ impl GlobalHotKeyManager {
 		// get key scan code
 		match key_to_vk(&hotkey.key) {
 			Some(vk_code) => {
-				let result = unsafe {
-					RegisterHotKey(
-						self.hwnd,
-						hotkey.id() as _,
-						mods,
-						vk_code as _,
-					)
-				};
+				let result =
+					unsafe { RegisterHotKey(self.hwnd, hotkey.id() as _, mods, vk_code as _) };
 				if result == 0 {
 					return Err(crate::Error::AlreadyRegistered(hotkey));
 				}
 			},
 			_ => {
 				return Err(crate::Error::FailedToRegister(format!(
-					"Unable to register hotkey (unknown VKCode for this key: \
-					 {}).",
+					"Unable to register hotkey (unknown VKCode for this key: {}).",
 					hotkey.key
 				)));
 			},
@@ -194,8 +185,7 @@ pub fn get_instance_handle() -> windows_sys::Win32::Foundation::HMODULE {
 	// DLLs: https://stackoverflow.com/questions/21718027/getmodulehandlenull-vs-hinstance
 
 	extern {
-		static __ImageBase:
-			windows_sys::Win32::System::SystemServices::IMAGE_DOS_HEADER;
+		static __ImageBase: windows_sys::Win32::System::SystemServices::IMAGE_DOS_HEADER;
 	}
 
 	unsafe { &__ImageBase as *const _ as _ }

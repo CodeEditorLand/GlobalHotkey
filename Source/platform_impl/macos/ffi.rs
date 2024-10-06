@@ -204,8 +204,7 @@ pub enum CGEvent {}
 pub type CGEventRef = *const CGEvent;
 
 unsafe impl RefEncode for CGEvent {
-	const ENCODING_REF:Encoding =
-		Encoding::Pointer(&Encoding::Struct("__CGEvent", &[]));
+	const ENCODING_REF:Encoding = Encoding::Pointer(&Encoding::Struct("__CGEvent", &[]));
 }
 
 pub type CGEventTapProxy = *const c_void;
@@ -263,15 +262,7 @@ extern {
 		order:CFIndex,
 	) -> CFRunLoopSourceRef;
 	pub fn CFMachPortInvalidate(port:CFMachPortRef);
-	pub fn CFRunLoopAddSource(
-		rl:CFRunLoopRef,
-		source:CFRunLoopSourceRef,
-		mode:CFRunLoopMode,
-	);
-	pub fn CFRunLoopRemoveSource(
-		rl:CFRunLoopRef,
-		source:CFRunLoopSourceRef,
-		mode:CFRunLoopMode,
-	);
+	pub fn CFRunLoopAddSource(rl:CFRunLoopRef, source:CFRunLoopSourceRef, mode:CFRunLoopMode);
+	pub fn CFRunLoopRemoveSource(rl:CFRunLoopRef, source:CFRunLoopSourceRef, mode:CFRunLoopMode);
 	pub fn CFRelease(cftype:*const c_void);
 }

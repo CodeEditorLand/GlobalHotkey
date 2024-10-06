@@ -7,12 +7,7 @@ use std::{
 
 use keyboard_types::{Code, Modifiers};
 use objc2::{msg_send_id, rc::Retained, ClassType};
-use objc2_app_kit::{
-	NSEvent,
-	NSEventModifierFlags,
-	NSEventSubtype,
-	NSEventType,
-};
+use objc2_app_kit::{NSEvent, NSEventModifierFlags, NSEventSubtype, NSEventType};
 
 use self::ffi::{
 	kEventClassKeyboard,
@@ -78,14 +73,10 @@ unsafe impl Sync for GlobalHotKeyManager {}
 
 impl GlobalHotKeyManager {
 	pub fn new() -> crate::Result<Self> {
-		let pressed_event_type = EventTypeSpec {
-			eventClass:kEventClassKeyboard,
-			eventKind:kEventHotKeyPressed,
-		};
-		let released_event_type = EventTypeSpec {
-			eventClass:kEventClassKeyboard,
-			eventKind:kEventHotKeyReleased,
-		};
+		let pressed_event_type =
+			EventTypeSpec { eventClass:kEventClassKeyboard, eventKind:kEventHotKeyPressed };
+		let released_event_type =
+			EventTypeSpec { eventClass:kEventClassKeyboard, eventKind:kEventHotKeyReleased };
 		let event_types = [pressed_event_type, released_event_type];
 
 		let ptr = unsafe {
@@ -101,9 +92,7 @@ impl GlobalHotKeyManager {
 			);
 
 			if result != noErr as _ {
-				return Err(crate::Error::OsError(
-					std::io::Error::last_os_error(),
-				));
+				return Err(crate::Error::OsError(std::io::Error::last_os_error()));
 			}
 
 			handler_ref
@@ -171,10 +160,7 @@ impl GlobalHotKeyManager {
 				hotkey_ref
 			};
 
-			self.hotkeys
-				.lock()
-				.unwrap()
-				.insert(hotkey.id(), HotKeyWrapper { ptr, hotkey });
+			self.hotkeys.lock().unwrap().insert(hotkey.id(), HotKeyWrapper { ptr, hotkey });
 			Ok(())
 		} else if is_media_key(hotkey.key) {
 			{
@@ -186,8 +172,7 @@ impl GlobalHotKeyManager {
 			self.start_watching_media_keys()
 		} else {
 			Err(crate::Error::FailedToRegister(format!(
-				"Unable to register accelerator (unknown scancode for this \
-				 key: {}).",
+				"Unable to register accelerator (unknown scancode for this key: {}).",
 				hotkey.key
 			)))
 		}
@@ -200,9 +185,7 @@ impl GlobalHotKeyManager {
 			if media_hotkey.is_empty() {
 				self.stop_watching_media_keys();
 			}
-		} else if let Some(hotkeywrapper) =
-			self.hotkeys.lock().unwrap().remove(&hotkey.id())
-		{
+		} else if let Some(hotkeywrapper) = self.hotkeys.lock().unwrap().remove(&hotkey.id()) {
 			unsafe { self.unregister_hotkey_ptr(hotkeywrapper.ptr, hotkey) }?;
 		}
 
@@ -223,11 +206,7 @@ impl GlobalHotKeyManager {
 		Ok(())
 	}
 
-	unsafe fn unregister_hotkey_ptr(
-		&self,
-		ptr:EventHotKeyRef,
-		hotkey:HotKey,
-	) -> crate::Result<()> {
+	unsafe fn unregister_hotkey_ptr(&self, ptr:EventHotKeyRef, hotkey:HotKey) -> crate::Result<()> {
 		if UnregisterEventHotKey(ptr) != noErr as _ {
 			return Err(crate::Error::FailedToUnRegister(hotkey));
 		}
@@ -244,8 +223,7 @@ impl GlobalHotKeyManager {
 		}
 
 		unsafe {
-			let event_mask:CGEventMask =
-				CGEventMaskBit!(CGEventType::SystemDefined);
+			let event_mask:CGEventMask = CGEventMaskBit!(CGEventType::SystemDefined);
 			let tap = CGEventTapCreate(
 				CGEventTapLocation::Session,
 				CGEventTapPlacement::HeadInsertEventTap,
@@ -259,8 +237,7 @@ impl GlobalHotKeyManager {
 			}
 			*event_tap = Some(tap);
 
-			let loop_source =
-				CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0);
+			let loop_source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0);
 			if loop_source.is_null() {
 				// cleanup event_tap
 				CFMachPortInvalidate(tap);
@@ -281,15 +258,9 @@ impl GlobalHotKeyManager {
 
 	fn stop_watching_media_keys(&self) {
 		unsafe {
-			if let Some(event_tap_source) =
-				self.event_tap_source.lock().unwrap().take()
-			{
+			if let Some(event_tap_source) = self.event_tap_source.lock().unwrap().take() {
 				let run_loop = CFRunLoopGetMain();
-				CFRunLoopRemoveSource(
-					run_loop,
-					event_tap_source,
-					kCFRunLoopCommonModes,
-				);
+				CFRunLoopRemoveSource(run_loop, event_tap_source, kCFRunLoopCommonModes);
 				CFRelease(event_tap_source as *const c_void);
 			}
 			if let Some(event_tap) = self.event_tap.lock().unwrap().take() {
@@ -401,14 +372,11 @@ unsafe extern fn media_key_event_callback(
 		return event;
 	}
 
-	let ns_event:Retained<NSEvent> =
-		msg_send_id![NSEvent::class(), eventWithCGEvent: event];
+	let ns_event:Retained<NSEvent> = msg_send_id![NSEvent::class(), eventWithCGEvent: event];
 	let event_type = ns_event.r#type();
 	let event_subtype = ns_event.subtype();
 
-	if event_type == NSEventType::SystemDefined
-		&& event_subtype == NSEventSubtype::ScreenChanged
-	{
+	if event_type == NSEventType::SystemDefined && event_subtype == NSEventSubtype::ScreenChanged {
 		// Key
 		let data_1 = ns_event.data1();
 		let nx_keytype = NX_KEYTYPE::try_from((data_1 & 0xFFFF0000) >> 16);

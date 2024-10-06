@@ -91,15 +91,11 @@ pub struct GlobalHotKeyEvent {
 
 /// A reciever that could be used to listen to global hotkey events.
 pub type GlobalHotKeyEventReceiver = Receiver<GlobalHotKeyEvent>;
-type GlobalHotKeyEventHandler =
-	Box<dyn Fn(GlobalHotKeyEvent) + Send + Sync + 'static>;
+type GlobalHotKeyEventHandler = Box<dyn Fn(GlobalHotKeyEvent) + Send + Sync + 'static>;
 
-static GLOBAL_HOTKEY_CHANNEL:Lazy<(
-	Sender<GlobalHotKeyEvent>,
-	GlobalHotKeyEventReceiver,
-)> = Lazy::new(unbounded);
-static GLOBAL_HOTKEY_EVENT_HANDLER:OnceCell<Option<GlobalHotKeyEventHandler>> =
-	OnceCell::new();
+static GLOBAL_HOTKEY_CHANNEL:Lazy<(Sender<GlobalHotKeyEvent>, GlobalHotKeyEventReceiver)> =
+	Lazy::new(unbounded);
+static GLOBAL_HOTKEY_EVENT_HANDLER:OnceCell<Option<GlobalHotKeyEventHandler>> = OnceCell::new();
 
 impl GlobalHotKeyEvent {
 	/// Returns the id of the associated [`HotKey`].
@@ -117,9 +113,7 @@ impl GlobalHotKeyEvent {
 	/// This will not receive any events if
 	/// [`GlobalHotKeyEvent::set_event_handler`] has been called with a `Some`
 	/// value.
-	pub fn receiver<'a>() -> &'a GlobalHotKeyEventReceiver {
-		&GLOBAL_HOTKEY_CHANNEL.1
-	}
+	pub fn receiver<'a>() -> &'a GlobalHotKeyEventReceiver { &GLOBAL_HOTKEY_CHANNEL.1 }
 
 	/// Set a handler to be called for new events. Useful for implementing
 	/// custom event sender.
@@ -129,11 +123,7 @@ impl GlobalHotKeyEvent {
 	/// Calling this function with a `Some` value,
 	/// will not send new events to the channel associated with
 	/// [`GlobalHotKeyEvent::receiver`]
-	pub fn set_event_handler<
-		F:Fn(GlobalHotKeyEvent) + Send + Sync + 'static,
-	>(
-		f:Option<F>,
-	) {
+	pub fn set_event_handler<F:Fn(GlobalHotKeyEvent) + Send + Sync + 'static>(f:Option<F>) {
 		if let Some(f) = f {
 			let _ = GLOBAL_HOTKEY_EVENT_HANDLER.set(Some(Box::new(f)));
 		} else {
@@ -142,8 +132,7 @@ impl GlobalHotKeyEvent {
 	}
 
 	pub(crate) fn send(event:GlobalHotKeyEvent) {
-		if let Some(handler) = GLOBAL_HOTKEY_EVENT_HANDLER.get_or_init(|| None)
-		{
+		if let Some(handler) = GLOBAL_HOTKEY_EVENT_HANDLER.get_or_init(|| None) {
 			handler(event);
 		} else {
 			let _ = GLOBAL_HOTKEY_CHANNEL.0.send(event);

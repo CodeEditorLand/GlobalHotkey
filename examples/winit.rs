@@ -16,8 +16,7 @@ fn main() {
 	let hotkeys_manager = GlobalHotKeyManager::new().unwrap();
 
 	let hotkey = HotKey::new(Some(Modifiers::SHIFT), Code::KeyD);
-	let hotkey2 =
-		HotKey::new(Some(Modifiers::SHIFT | Modifiers::ALT), Code::KeyD);
+	let hotkey2 = HotKey::new(Some(Modifiers::SHIFT | Modifiers::ALT), Code::KeyD);
 	let hotkey3 = HotKey::new(None, Code::KeyF);
 
 	hotkeys_manager.register(hotkey).unwrap();
@@ -33,9 +32,7 @@ fn main() {
 			if let Ok(event) = global_hotkey_channel.try_recv() {
 				println!("{event:?}");
 
-				if hotkey2.id() == event.id
-					&& event.state == HotKeyState::Released
-				{
+				if hotkey2.id() == event.id && event.state == HotKeyState::Released {
 					hotkeys_manager.unregister(hotkey2).unwrap();
 				}
 			}

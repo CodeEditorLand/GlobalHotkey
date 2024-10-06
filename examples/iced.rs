@@ -43,10 +43,7 @@ impl Application for Example {
 
 		manager.register(hotkey_1).unwrap();
 		manager.register(hotkey_2).unwrap();
-		(
-			Example { last_pressed:"".to_string(), _manager:manager },
-			Command::none(),
-		)
+		(Example { last_pressed:"".to_string(), _manager:manager }, Command::none())
 	}
 
 	fn title(&self) -> String { String::from("Iced example!") }
@@ -67,8 +64,7 @@ impl Application for Example {
 	}
 
 	fn view(&self) -> Element<'_, Self::Message> {
-		container(row![text("You pressed: "), text(self.last_pressed.clone())])
-			.into()
+		container(row![text("You pressed: "), text(self.last_pressed.clone())]).into()
 	}
 
 	fn subscription(&self) -> Subscription<Self::Message> { self.hotkey_sub() }
@@ -83,17 +79,11 @@ impl Example {
 				loop {
 					if let Ok(event) = receiver.try_recv() {
 						sender
-							.send(ProgramCommands::Received(format!(
-								"{:?}",
-								event
-							)))
+							.send(ProgramCommands::Received(format!("{:?}", event)))
 							.await
 							.unwrap();
 					}
-					async_std::task::sleep(std::time::Duration::from_millis(
-						50,
-					))
-					.await;
+					async_std::task::sleep(std::time::Duration::from_millis(50)).await;
 				}
 			}
 		})

@@ -43,8 +43,8 @@ pub enum HotKeyParseError {
 	#[error("Found empty token while parsing hotkey: {0}")]
 	EmptyToken(String),
 	#[error(
-		"Invalid hotkey format: \"{0}\", an hotkey should have the modifiers \
-		 first and only one main key, for example: \"Shift + Alt + K\""
+		"Invalid hotkey format: \"{0}\", an hotkey should have the modifiers first and only one \
+		 main key, for example: \"Shift + Alt + K\""
 	)]
 	InvalidFormat(String),
 }
@@ -68,9 +68,9 @@ impl<'de> serde::Deserialize<'de> for HotKey {
 	where
 		D: serde::Deserializer<'de>, {
 		let hotkey = String::deserialize(deserializer)?;
-		hotkey.parse().map_err(|e:HotKeyParseError| {
-			serde::de::Error::custom(e.to_string())
-		})
+		hotkey
+			.parse()
+			.map_err(|e:HotKeyParseError| serde::de::Error::custom(e.to_string()))
 	}
 }
 
@@ -103,16 +103,9 @@ impl HotKey {
 	pub fn id(&self) -> u32 { self.id }
 
 	/// Returns `true` if this [`Code`] and [`Modifiers`] matches this hotkey.
-	pub fn matches(
-		&self,
-		modifiers:impl Borrow<Modifiers>,
-		key:impl Borrow<Code>,
-	) -> bool {
+	pub fn matches(&self, modifiers:impl Borrow<Modifiers>, key:impl Borrow<Code>) -> bool {
 		// Should be a const but const bit_or doesn't work here.
-		let base_mods = Modifiers::SHIFT
-			| Modifiers::CONTROL
-			| Modifiers::ALT
-			| Modifiers::SUPER;
+		let base_mods = Modifiers::SHIFT | Modifiers::CONTROL | Modifiers::ALT | Modifiers::SUPER;
 		let modifiers = modifiers.borrow();
 		let key = key.borrow();
 		self.mods == *modifiers & base_mods && self.key == *key
@@ -150,9 +143,7 @@ impl Display for HotKey {
 impl FromStr for HotKey {
 	type Err = HotKeyParseError;
 
-	fn from_str(hotkey_string:&str) -> Result<Self, Self::Err> {
-		parse_hotkey(hotkey_string)
-	}
+	fn from_str(hotkey_string:&str) -> Result<Self, Self::Err> { parse_hotkey(hotkey_string) }
 }
 
 impl TryFrom<&str> for HotKey {
@@ -164,9 +155,7 @@ impl TryFrom<&str> for HotKey {
 impl TryFrom<String> for HotKey {
 	type Error = HotKeyParseError;
 
-	fn try_from(value:String) -> Result<Self, Self::Error> {
-		parse_hotkey(&value)
-	}
+	fn try_from(value:String) -> Result<Self, Self::Error> { parse_hotkey(&value) }
 }
 
 fn parse_hotkey(hotkey:&str) -> Result<HotKey, HotKeyParseError> {
@@ -186,9 +175,7 @@ fn parse_hotkey(hotkey:&str) -> Result<HotKey, HotKeyParseError> {
 				let token = raw.trim();
 
 				if token.is_empty() {
-					return Err(HotKeyParseError::EmptyToken(
-						hotkey.to_string(),
-					));
+					return Err(HotKeyParseError::EmptyToken(hotkey.to_string()));
 				}
 
 				if key.is_some() {
@@ -196,12 +183,9 @@ fn parse_hotkey(hotkey:&str) -> Result<HotKey, HotKeyParseError> {
 					// key, so by reaching this code, the function either
 					// received more than one main key or  the hotkey is
 					// not in the right order examples:
-					// 1. "Ctrl+Shift+C+A" => only one main key should be
-					//    allowd.
+					// 1. "Ctrl+Shift+C+A" => only one main key should be allowd.
 					// 2. "Ctrl+C+Shift" => wrong order
-					return Err(HotKeyParseError::InvalidFormat(
-						hotkey.to_string(),
-					));
+					return Err(HotKeyParseError::InvalidFormat(hotkey.to_string()));
 				}
 
 				match token.to_uppercase().as_str() {
@@ -218,13 +202,11 @@ fn parse_hotkey(hotkey:&str) -> Result<HotKey, HotKeyParseError> {
 						mods |= Modifiers::SHIFT;
 					},
 					#[cfg(target_os = "macos")]
-					"COMMANDORCONTROL" | "COMMANDORCTRL" | "CMDORCTRL"
-					| "CMDORCONTROL" => {
+					"COMMANDORCONTROL" | "COMMANDORCTRL" | "CMDORCTRL" | "CMDORCONTROL" => {
 						mods |= Modifiers::SUPER;
 					},
 					#[cfg(not(target_os = "macos"))]
-					"COMMANDORCONTROL" | "COMMANDORCTRL" | "CMDORCTRL"
-					| "CMDORCONTROL" => {
+					"COMMANDORCONTROL" | "COMMANDORCTRL" | "CMDORCTRL" | "CMDORCONTROL" => {
 						mods |= Modifiers::CONTROL;
 					},
 					_ => {
@@ -376,50 +358,26 @@ fn test_parse_hotkey() {
 		};
 	}
 
-	assert_parse_hotkey!(
-		"KeyX",
-		HotKey { mods:Modifiers::empty(), key:Code::KeyX, id:0 }
-	);
+	assert_parse_hotkey!("KeyX", HotKey { mods:Modifiers::empty(), key:Code::KeyX, id:0 });
 
-	assert_parse_hotkey!(
-		"CTRL+KeyX",
-		HotKey { mods:Modifiers::CONTROL, key:Code::KeyX, id:0 }
-	);
+	assert_parse_hotkey!("CTRL+KeyX", HotKey { mods:Modifiers::CONTROL, key:Code::KeyX, id:0 });
 
-	assert_parse_hotkey!(
-		"SHIFT+KeyC",
-		HotKey { mods:Modifiers::SHIFT, key:Code::KeyC, id:0 }
-	);
+	assert_parse_hotkey!("SHIFT+KeyC", HotKey { mods:Modifiers::SHIFT, key:Code::KeyC, id:0 });
 
-	assert_parse_hotkey!(
-		"SHIFT+KeyC",
-		HotKey { mods:Modifiers::SHIFT, key:Code::KeyC, id:0 }
-	);
+	assert_parse_hotkey!("SHIFT+KeyC", HotKey { mods:Modifiers::SHIFT, key:Code::KeyC, id:0 });
 
 	assert_parse_hotkey!(
 		"super+ctrl+SHIFT+alt+ArrowUp",
 		HotKey {
-			mods:Modifiers::SUPER
-				| Modifiers::CONTROL
-				| Modifiers::SHIFT
-				| Modifiers::ALT,
+			mods:Modifiers::SUPER | Modifiers::CONTROL | Modifiers::SHIFT | Modifiers::ALT,
 			key:Code::ArrowUp,
 			id:0,
 		}
 	);
-	assert_parse_hotkey!(
-		"Digit5",
-		HotKey { mods:Modifiers::empty(), key:Code::Digit5, id:0 }
-	);
-	assert_parse_hotkey!(
-		"KeyG",
-		HotKey { mods:Modifiers::empty(), key:Code::KeyG, id:0 }
-	);
+	assert_parse_hotkey!("Digit5", HotKey { mods:Modifiers::empty(), key:Code::Digit5, id:0 });
+	assert_parse_hotkey!("KeyG", HotKey { mods:Modifiers::empty(), key:Code::KeyG, id:0 });
 
-	assert_parse_hotkey!(
-		"SHiFT+F12",
-		HotKey { mods:Modifiers::SHIFT, key:Code::F12, id:0 }
-	);
+	assert_parse_hotkey!("SHiFT+F12", HotKey { mods:Modifiers::SHIFT, key:Code::F12, id:0 });
 
 	assert_parse_hotkey!(
 		"CmdOrCtrl+Space",

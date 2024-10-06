@@ -45,8 +45,7 @@ impl GlobalHotKeyManager {
 
 	pub fn unregister(&self, hotkey:HotKey) -> crate::Result<()> {
 		let (tx, rx) = crossbeam_channel::bounded(1);
-		let _ =
-			self.thread_tx.send(ThreadMessage::UnRegisterHotKey(hotkey, tx));
+		let _ = self.thread_tx.send(ThreadMessage::UnRegisterHotKey(hotkey, tx));
 
 		if let Ok(result) = rx.recv() {
 			result?;
@@ -57,9 +56,7 @@ impl GlobalHotKeyManager {
 
 	pub fn register_all(&self, hotkeys:&[HotKey]) -> crate::Result<()> {
 		let (tx, rx) = crossbeam_channel::bounded(1);
-		let _ = self
-			.thread_tx
-			.send(ThreadMessage::RegisterHotKeys(hotkeys.to_vec(), tx));
+		let _ = self.thread_tx.send(ThreadMessage::RegisterHotKeys(hotkeys.to_vec(), tx));
 
 		if let Ok(result) = rx.recv() {
 			result?;
@@ -70,9 +67,7 @@ impl GlobalHotKeyManager {
 
 	pub fn unregister_all(&self, hotkeys:&[HotKey]) -> crate::Result<()> {
 		let (tx, rx) = crossbeam_channel::bounded(1);
-		let _ = self
-			.thread_tx
-			.send(ThreadMessage::UnRegisterHotKeys(hotkeys.to_vec(), tx));
+		let _ = self.thread_tx.send(ThreadMessage::UnRegisterHotKeys(hotkeys.to_vec(), tx));
 
 		if let Ok(result) = rx.recv() {
 			result?;
@@ -83,9 +78,7 @@ impl GlobalHotKeyManager {
 }
 
 impl Drop for GlobalHotKeyManager {
-	fn drop(&mut self) {
-		let _ = self.thread_tx.send(ThreadMessage::DropThread);
-	}
+	fn drop(&mut self) { let _ = self.thread_tx.send(ThreadMessage::DropThread); }
 }
 
 // XGrabKey works only with the exact state (modifiers)
@@ -107,10 +100,8 @@ fn register_hotkey(
 	hotkeys:&mut BTreeMap<u32, Vec<(u32, u32, bool)>>,
 	hotkey:HotKey,
 ) -> crate::Result<()> {
-	let (modifiers, key) = (
-		modifiers_to_x11_mods(hotkey.mods),
-		keycode_to_x11_scancode(hotkey.key),
-	);
+	let (modifiers, key) =
+		(modifiers_to_x11_mods(hotkey.mods), keycode_to_x11_scancode(hotkey.key));
 
 	if let Some(key) = key {
 		let keycode = unsafe { (xlib.XKeysymToKeycode)(display, key as _) };
@@ -130,14 +121,7 @@ fn register_hotkey(
 
 			if result == xlib::BadAccess as _ {
 				for m in IGNORED_MODS {
-					unsafe {
-						(xlib.XUngrabKey)(
-							display,
-							keycode as _,
-							modifiers | m,
-							root,
-						)
-					};
+					unsafe { (xlib.XUngrabKey)(display, keycode as _, modifiers | m, root) };
 				}
 
 				return Err(crate::Error::AlreadyRegistered(hotkey));
@@ -154,8 +138,7 @@ fn register_hotkey(
 		}
 	} else {
 		Err(crate::Error::FailedToRegister(format!(
-			"Unable to register accelerator (unknown scancode for this key: \
-			 {}).",
+			"Unable to register accelerator (unknown scancode for this key: {}).",
 			hotkey.key
 		)))
 	}
@@ -169,18 +152,14 @@ fn unregister_hotkey(
 	hotkeys:&mut BTreeMap<u32, Vec<(u32, u32, bool)>>,
 	hotkey:HotKey,
 ) -> crate::Result<()> {
-	let (modifiers, key) = (
-		modifiers_to_x11_mods(hotkey.mods),
-		keycode_to_x11_scancode(hotkey.key),
-	);
+	let (modifiers, key) =
+		(modifiers_to_x11_mods(hotkey.mods), keycode_to_x11_scancode(hotkey.key));
 
 	if let Some(key) = key {
 		let keycode = unsafe { (xlib.XKeysymToKeycode)(display, key as _) };
 
 		for m in IGNORED_MODS {
-			unsafe {
-				(xlib.XUngrabKey)(display, keycode as _, modifiers | m, root)
-			};
+			unsafe { (xlib.XUngrabKey)(display, keycode as _, modifiers | m, root) };
 		}
 
 		let entry = hotkeys.entry(keycode as _).or_default();
@@ -225,11 +204,10 @@ fn events_processor(thread_rx:Receiver<ThreadMessage>) {
 								match e {
 									xlib::KeyPress => {
 										for (id, mods, pressed) in entry {
-											if event_mods == *mods && !*pressed
-											{
+											if event_mods == *mods && !*pressed {
 												GlobalHotKeyEvent::send(GlobalHotKeyEvent {
-													id: *id,
-													state: crate::HotKeyState::Pressed,
+													id:*id,
+													state:crate::HotKeyState::Pressed,
 												});
 												*pressed = true;
 											}
@@ -239,8 +217,8 @@ fn events_processor(thread_rx:Receiver<ThreadMessage>) {
 										for (id, _, pressed) in entry {
 											if *pressed {
 												GlobalHotKeyEvent::send(GlobalHotKeyEvent {
-													id: *id,
-													state: crate::HotKeyState::Released,
+													id:*id,
+													state:crate::HotKeyState::Released,
 												});
 												*pressed = false;
 											}
@@ -267,13 +245,9 @@ fn events_processor(thread_rx:Receiver<ThreadMessage>) {
 						},
 						ThreadMessage::RegisterHotKeys(keys, tx) => {
 							for hotkey in keys {
-								if let Err(e) = register_hotkey(
-									&xlib,
-									display,
-									root,
-									&mut hotkeys,
-									hotkey,
-								) {
+								if let Err(e) =
+									register_hotkey(&xlib, display, root, &mut hotkeys, hotkey)
+								{
 									let _ = tx.send(Err(e));
 								}
 							}
@@ -290,13 +264,9 @@ fn events_processor(thread_rx:Receiver<ThreadMessage>) {
 						},
 						ThreadMessage::UnRegisterHotKeys(keys, tx) => {
 							for hotkey in keys {
-								if let Err(e) = unregister_hotkey(
-									&xlib,
-									display,
-									root,
-									&mut hotkeys,
-									hotkey,
-								) {
+								if let Err(e) =
+									unregister_hotkey(&xlib, display, root, &mut hotkeys, hotkey)
+								{
 									let _ = tx.send(Err(e));
 								}
 							}
@@ -315,9 +285,8 @@ fn events_processor(thread_rx:Receiver<ThreadMessage>) {
 	} else {
 		#[cfg(debug_assertions)]
 		eprintln!(
-			"Failed to open Xlib, maybe you are not running under X11? Other \
-			 window systems on Linux are not supported by `global-hotkey` \
-			 crate."
+			"Failed to open Xlib, maybe you are not running under X11? Other window systems on \
+			 Linux are not supported by `global-hotkey` crate."
 		);
 	}
 }
