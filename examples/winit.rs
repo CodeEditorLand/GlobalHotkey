@@ -3,37 +3,39 @@
 // SPDX-License-Identifier: MIT
 
 use global_hotkey::{
-    hotkey::{Code, HotKey, Modifiers},
-    GlobalHotKeyEvent, GlobalHotKeyManager, HotKeyState,
+	hotkey::{Code, HotKey, Modifiers},
+	GlobalHotKeyEvent,
+	GlobalHotKeyManager,
+	HotKeyState,
 };
 use winit::event_loop::{ControlFlow, EventLoopBuilder};
 
 fn main() {
-    let event_loop = EventLoopBuilder::new().build().unwrap();
+	let event_loop = EventLoopBuilder::new().build().unwrap();
 
-    let hotkeys_manager = GlobalHotKeyManager::new().unwrap();
+	let hotkeys_manager = GlobalHotKeyManager::new().unwrap();
 
-    let hotkey = HotKey::new(Some(Modifiers::SHIFT), Code::KeyD);
-    let hotkey2 = HotKey::new(Some(Modifiers::SHIFT | Modifiers::ALT), Code::KeyD);
-    let hotkey3 = HotKey::new(None, Code::KeyF);
+	let hotkey = HotKey::new(Some(Modifiers::SHIFT), Code::KeyD);
+	let hotkey2 = HotKey::new(Some(Modifiers::SHIFT | Modifiers::ALT), Code::KeyD);
+	let hotkey3 = HotKey::new(None, Code::KeyF);
 
-    hotkeys_manager.register(hotkey).unwrap();
-    hotkeys_manager.register(hotkey2).unwrap();
-    hotkeys_manager.register(hotkey3).unwrap();
+	hotkeys_manager.register(hotkey).unwrap();
+	hotkeys_manager.register(hotkey2).unwrap();
+	hotkeys_manager.register(hotkey3).unwrap();
 
-    let global_hotkey_channel = GlobalHotKeyEvent::receiver();
+	let global_hotkey_channel = GlobalHotKeyEvent::receiver();
 
-    event_loop
-        .run(move |_event, event_loop| {
-            event_loop.set_control_flow(ControlFlow::Poll);
+	event_loop
+		.run(move |_event, event_loop| {
+			event_loop.set_control_flow(ControlFlow::Poll);
 
-            if let Ok(event) = global_hotkey_channel.try_recv() {
-                println!("{event:?}");
+			if let Ok(event) = global_hotkey_channel.try_recv() {
+				println!("{event:?}");
 
-                if hotkey2.id() == event.id && event.state == HotKeyState::Released {
-                    hotkeys_manager.unregister(hotkey2).unwrap();
-                }
-            }
-        })
-        .unwrap();
+				if hotkey2.id() == event.id && event.state == HotKeyState::Released {
+					hotkeys_manager.unregister(hotkey2).unwrap();
+				}
+			}
+		})
+		.unwrap();
 }
