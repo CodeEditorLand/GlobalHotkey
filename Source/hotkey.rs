@@ -65,6 +65,7 @@ impl<'de> serde::Deserialize<'de> for HotKey {
         D: serde::Deserializer<'de>,
     {
         let hotkey = String::deserialize(deserializer)?;
+
         hotkey
             .parse()
             .map_err(|e: HotKeyParseError| serde::de::Error::custom(e.to_string()))
@@ -86,8 +87,10 @@ impl HotKey {
     /// Only [`Modifiers::ALT`], [`Modifiers::SHIFT`], [`Modifiers::CONTROL`], and [`Modifiers::SUPER`]
     pub fn new(mods: Option<Modifiers>, key: Code) -> Self {
         let mut mods = mods.unwrap_or_else(Modifiers::empty);
+
         if mods.contains(Modifiers::META) {
             mods.remove(Modifiers::META);
+
             mods.insert(Modifiers::SUPER);
         }
 
@@ -108,27 +111,36 @@ impl HotKey {
     pub fn matches(&self, modifiers: impl Borrow<Modifiers>, key: impl Borrow<Code>) -> bool {
         // Should be a const but const bit_or doesn't work here.
         let base_mods = Modifiers::SHIFT | Modifiers::CONTROL | Modifiers::ALT | Modifiers::SUPER;
+
         let modifiers = modifiers.borrow();
+
         let key = key.borrow();
+
         self.mods == *modifiers & base_mods && self.key == *key
     }
 
     /// Converts this hotkey into a string.
     pub fn into_string(self) -> String {
         let mut hotkey = String::new();
+
         if self.mods.contains(Modifiers::SHIFT) {
             hotkey.push_str("shift+")
         }
+
         if self.mods.contains(Modifiers::CONTROL) {
             hotkey.push_str("control+")
         }
+
         if self.mods.contains(Modifiers::ALT) {
             hotkey.push_str("alt+")
         }
+
         if self.mods.contains(Modifiers::SUPER) {
             hotkey.push_str("super+")
         }
+
         hotkey.push_str(&self.key.to_string());
+
         hotkey
     }
 }
@@ -144,6 +156,7 @@ impl Display for HotKey {
 // to generate hotkey from string
 impl FromStr for HotKey {
     type Err = HotKeyParseError;
+
     fn from_str(hotkey_string: &str) -> Result<Self, Self::Err> {
         parse_hotkey(hotkey_string)
     }
@@ -169,6 +182,7 @@ fn parse_hotkey(hotkey: &str) -> Result<HotKey, HotKeyParseError> {
     let tokens = hotkey.split('+').collect::<Vec<&str>>();
 
     let mut mods = Modifiers::empty();
+
     let mut key = None;
 
     match tokens.len() {
@@ -216,6 +230,7 @@ fn parse_hotkey(hotkey: &str) -> Result<HotKey, HotKeyParseError> {
                     "COMMANDORCONTROL" | "COMMANDORCTRL" | "CMDORCTRL" | "CMDORCONTROL" => {
                         mods |= Modifiers::CONTROL;
                     }
+
                     _ => {
                         key = Some(parse_key(token)?);
                     }
@@ -232,6 +247,7 @@ fn parse_hotkey(hotkey: &str) -> Result<HotKey, HotKeyParseError> {
 
 fn parse_key(key: &str) -> Result<Code, HotKeyParseError> {
     use Code::*;
+
     match key.to_uppercase().as_str() {
         "BACKQUOTE" | "`" => Ok(Backquote),
         "BACKSLASH" | "\\" => Ok(Backslash),
@@ -360,8 +376,11 @@ fn test_parse_hotkey() {
     macro_rules! assert_parse_hotkey {
         ($key:literal, $lrh:expr) => {
             let r = parse_hotkey($key).unwrap();
+
             let l = $lrh;
+
             assert_eq!(r.mods, l.mods);
+
             assert_eq!(r.key, l.key);
         };
     }
@@ -410,6 +429,7 @@ fn test_parse_hotkey() {
             id: 0,
         }
     );
+
     assert_parse_hotkey!(
         "Digit5",
         HotKey {
@@ -418,6 +438,7 @@ fn test_parse_hotkey() {
             id: 0,
         }
     );
+
     assert_parse_hotkey!(
         "KeyG",
         HotKey {
@@ -458,13 +479,19 @@ fn test_parse_hotkey() {
 #[test]
 fn test_equality() {
     let h1 = parse_hotkey("Shift+KeyR").unwrap();
+
     let h2 = parse_hotkey("Shift+KeyR").unwrap();
+
     let h3 = HotKey::new(Some(Modifiers::SHIFT), Code::KeyR);
+
     let h4 = parse_hotkey("Alt+KeyR").unwrap();
+
     let h5 = parse_hotkey("Alt+KeyR").unwrap();
+
     let h6 = parse_hotkey("KeyR").unwrap();
 
     assert!(h1 == h2 && h2 == h3 && h3 != h4 && h4 == h5 && h5 != h6);
+
     assert!(
         h1.id() == h2.id()
             && h2.id() == h3.id()

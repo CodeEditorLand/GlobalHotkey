@@ -98,8 +98,11 @@ extern "C" {
         outActualSize: *mut ByteCount,
         outData: *mut ::std::os::raw::c_void,
     ) -> OSStatus;
+
     pub fn GetEventKind(inEvent: EventRef) -> EventKind;
+
     pub fn GetApplicationEventTarget() -> EventTargetRef;
+
     pub fn InstallEventHandler(
         inTarget: EventTargetRef,
         inHandler: EventHandlerUPP,
@@ -108,7 +111,9 @@ extern "C" {
         inUserData: *mut ::std::os::raw::c_void,
         outRef: *mut EventHandlerRef,
     ) -> OSStatus;
+
     pub fn RemoveEventHandler(inHandlerRef: EventHandlerRef) -> OSStatus;
+
     pub fn RegisterEventHotKey(
         inHotKeyCode: UInt32,
         inHotKeyModifiers: UInt32,
@@ -117,6 +122,7 @@ extern "C" {
         inOptions: OptionBits,
         outRef: *mut EventHotKeyRef,
     ) -> OSStatus;
+
     pub fn UnregisterEventHotKey(inHotKey: EventHotKeyRef) -> OSStatus;
 }
 
@@ -223,6 +229,7 @@ extern "C" {
         callback: CGEventTapCallBack,
         user_info: *const c_void,
     ) -> CFMachPortRef;
+
     pub fn CGEventTapEnable(tap: CFMachPortRef, enable: bool);
 }
 
@@ -250,6 +257,7 @@ pub type CFIndex = c_long;
 #[link(name = "CoreFoundation", kind = "framework")]
 extern "C" {
     pub static kCFRunLoopCommonModes: CFRunLoopMode;
+
     pub static kCFAllocatorDefault: CFAllocatorRef;
 
     pub fn CFRunLoopGetMain() -> CFRunLoopRef;
@@ -259,8 +267,12 @@ extern "C" {
         port: CFMachPortRef,
         order: CFIndex,
     ) -> CFRunLoopSourceRef;
+
     pub fn CFMachPortInvalidate(port: CFMachPortRef);
+
     pub fn CFRunLoopAddSource(rl: CFRunLoopRef, source: CFRunLoopSourceRef, mode: CFRunLoopMode);
+
     pub fn CFRunLoopRemoveSource(rl: CFRunLoopRef, source: CFRunLoopSourceRef, mode: CFRunLoopMode);
+
     pub fn CFRelease(cftype: *const c_void);
 }

@@ -28,12 +28,15 @@ pub struct GlobalHotKeyManager {
 impl GlobalHotKeyManager {
     pub fn new() -> crate::Result<Self> {
         let (thread_tx, thread_rx) = unbounded();
+
         std::thread::spawn(|| events_processor(thread_rx));
+
         Ok(Self { thread_tx })
     }
 
     pub fn register(&self, hotkey: HotKey) -> crate::Result<()> {
         let (tx, rx) = crossbeam_channel::bounded(1);
+
         let _ = self
             .thread_tx
             .send(ThreadMessage::RegisterHotKey(hotkey, tx));
@@ -47,6 +50,7 @@ impl GlobalHotKeyManager {
 
     pub fn unregister(&self, hotkey: HotKey) -> crate::Result<()> {
         let (tx, rx) = crossbeam_channel::bounded(1);
+
         let _ = self
             .thread_tx
             .send(ThreadMessage::UnRegisterHotKey(hotkey, tx));
@@ -60,6 +64,7 @@ impl GlobalHotKeyManager {
 
     pub fn register_all(&self, hotkeys: &[HotKey]) -> crate::Result<()> {
         let (tx, rx) = crossbeam_channel::bounded(1);
+
         let _ = self
             .thread_tx
             .send(ThreadMessage::RegisterHotKeys(hotkeys.to_vec(), tx));
@@ -73,6 +78,7 @@ impl GlobalHotKeyManager {
 
     pub fn unregister_all(&self, hotkeys: &[HotKey]) -> crate::Result<()> {
         let (tx, rx) = crossbeam_channel::bounded(1);
+
         let _ = self
             .thread_tx
             .send(ThreadMessage::UnRegisterHotKeys(hotkeys.to_vec(), tx));
@@ -140,11 +146,14 @@ fn register_hotkey(
         }
 
         let entry = hotkeys.entry(keycode as _).or_default();
+
         match entry.iter().find(|e| e.1 == modifiers) {
             None => {
                 entry.push((hotkey.id(), modifiers, false));
+
                 Ok(())
             }
+
             Some(_) => Err(crate::Error::AlreadyRegistered(hotkey)),
         }
     } else {
@@ -176,7 +185,9 @@ fn unregister_hotkey(
         }
 
         let entry = hotkeys.entry(keycode as _).or_default();
+
         entry.retain(|k| k.1 != modifiers);
+
         Ok(())
     } else {
         Err(crate::Error::FailedToUnRegister(hotkey))
@@ -186,9 +197,11 @@ fn unregister_hotkey(
 fn events_processor(thread_rx: Receiver<ThreadMessage>) {
     //                           key    id,  mods, pressed
     let mut hotkeys = BTreeMap::<u32, Vec<(u32, u32, bool)>>::new();
+
     if let Ok(xlib) = xlib::Xlib::open() {
         unsafe {
             let display = (xlib.XOpenDisplay)(ptr::null());
+
             let root: c_ulong = (xlib.XDefaultRootWindow)(display);
 
             // Only trigger key release at end of repeated keys
@@ -196,12 +209,14 @@ fn events_processor(thread_rx: Receiver<ThreadMessage>) {
             (xlib.XkbSetDetectableAutoRepeat)(display, 1, &mut supported_rtrn);
 
             (xlib.XSelectInput)(display, root, xlib::KeyPressMask);
+
             let mut event: xlib::XEvent = std::mem::zeroed();
 
             loop {
                 // Always service all pending events to avoid a queue of events from building up.
                 while (xlib.XPending)(display) > 0 {
                     (xlib.XNextEvent)(display, &mut event);
+
                     match event.get_type() {
                         e @ xlib::KeyPress | e @ xlib::KeyRelease => {
                             let keycode = event.key.keycode;
@@ -225,6 +240,7 @@ fn events_processor(thread_rx: Receiver<ThreadMessage>) {
                                             }
                                         }
                                     }
+
                                     xlib::KeyRelease => {
                                         for (id, _, pressed) in entry {
                                             if *pressed {
@@ -236,10 +252,12 @@ fn events_processor(thread_rx: Receiver<ThreadMessage>) {
                                             }
                                         }
                                     }
+
                                     _ => {}
                                 }
                             }
                         }
+
                         _ => {}
                     }
                 }
@@ -255,6 +273,7 @@ fn events_processor(thread_rx: Receiver<ThreadMessage>) {
                                 hotkey,
                             ));
                         }
+
                         ThreadMessage::RegisterHotKeys(keys, tx) => {
                             for hotkey in keys {
                                 if let Err(e) =
@@ -263,8 +282,10 @@ fn events_processor(thread_rx: Receiver<ThreadMessage>) {
                                     let _ = tx.send(Err(e));
                                 }
                             }
+
                             let _ = tx.send(Ok(()));
                         }
+
                         ThreadMessage::UnRegisterHotKey(hotkey, tx) => {
                             let _ = tx.send(unregister_hotkey(
                                 &xlib,
@@ -274,6 +295,7 @@ fn events_processor(thread_rx: Receiver<ThreadMessage>) {
                                 hotkey,
                             ));
                         }
+
                         ThreadMessage::UnRegisterHotKeys(keys, tx) => {
                             for hotkey in keys {
                                 if let Err(e) =
@@ -282,10 +304,13 @@ fn events_processor(thread_rx: Receiver<ThreadMessage>) {
                                     let _ = tx.send(Err(e));
                                 }
                             }
+
                             let _ = tx.send(Ok(()));
                         }
+
                         ThreadMessage::DropThread => {
                             (xlib.XCloseDisplay)(display);
+
                             return;
                         }
                     }
@@ -410,17 +435,22 @@ fn keycode_to_x11_scancode(key: Code) -> Option<u32> {
 
 fn modifiers_to_x11_mods(modifiers: Modifiers) -> u32 {
     let mut x11mods = 0;
+
     if modifiers.contains(Modifiers::SHIFT) {
         x11mods |= xlib::ShiftMask;
     }
+
     if modifiers.intersects(Modifiers::SUPER | Modifiers::META) {
         x11mods |= xlib::Mod4Mask;
     }
+
     if modifiers.contains(Modifiers::ALT) {
         x11mods |= xlib::Mod1Mask;
     }
+
     if modifiers.contains(Modifiers::CONTROL) {
         x11mods |= xlib::ControlMask;
     }
+
     x11mods
 }

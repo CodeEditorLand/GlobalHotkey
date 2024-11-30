@@ -16,11 +16,15 @@ fn main() {
 	let hotkeys_manager = GlobalHotKeyManager::new().unwrap();
 
 	let hotkey = HotKey::new(Some(Modifiers::SHIFT), Code::KeyD);
+
 	let hotkey2 = HotKey::new(Some(Modifiers::SHIFT | Modifiers::ALT), Code::KeyD);
+
 	let hotkey3 = HotKey::new(None, Code::KeyF);
 
 	hotkeys_manager.register(hotkey).unwrap();
+
 	hotkeys_manager.register(hotkey2).unwrap();
+
 	hotkeys_manager.register(hotkey3).unwrap();
 
 	let global_hotkey_channel = GlobalHotKeyEvent::receiver();

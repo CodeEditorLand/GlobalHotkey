@@ -32,6 +32,7 @@ impl Drop for GlobalHotKeyManager {
 impl GlobalHotKeyManager {
     pub fn new() -> crate::Result<Self> {
         let class_name = encode_wide("global_hotkey_app");
+
         unsafe {
             let hinstance = get_instance_handle();
 
@@ -66,6 +67,7 @@ impl GlobalHotKeyManager {
                 hinstance,
                 std::ptr::null_mut(),
             );
+
             if hwnd.is_null() {
                 return Err(crate::Error::OsError(std::io::Error::last_os_error()));
             }
@@ -76,15 +78,19 @@ impl GlobalHotKeyManager {
 
     pub fn register(&self, hotkey: HotKey) -> crate::Result<()> {
         let mut mods = MOD_NOREPEAT;
+
         if hotkey.mods.contains(Modifiers::SHIFT) {
             mods |= MOD_SHIFT;
         }
+
         if hotkey.mods.intersects(Modifiers::SUPER | Modifiers::META) {
             mods |= MOD_WIN;
         }
+
         if hotkey.mods.contains(Modifiers::ALT) {
             mods |= MOD_ALT;
         }
+
         if hotkey.mods.contains(Modifiers::CONTROL) {
             mods |= MOD_CONTROL;
         }
@@ -94,22 +100,26 @@ impl GlobalHotKeyManager {
             Some(vk_code) => {
                 let result =
                     unsafe { RegisterHotKey(self.hwnd, hotkey.id() as _, mods, vk_code as _) };
+
                 if result == 0 {
                     let error = std::io::Error::last_os_error();
 
                     return match error.raw_os_error() {
                         Some(raw_os_error) => {
                             let win32error = WIN32_ERROR::try_from(raw_os_error);
+
                             if let Ok(ERROR_HOTKEY_ALREADY_REGISTERED) = win32error {
                                 Err(crate::Error::AlreadyRegistered(hotkey))
                             } else {
                                 Err(crate::Error::OsError(error))
                             }
                         }
+
                         _ => Err(crate::Error::OsError(error)),
                     };
                 }
             }
+
             _ => {
                 return Err(crate::Error::FailedToRegister(format!(
                     "Unable to register hotkey (unknown VKCode for this key: {}).",
@@ -123,9 +133,11 @@ impl GlobalHotKeyManager {
 
     pub fn unregister(&self, hotkey: HotKey) -> crate::Result<()> {
         let result = unsafe { UnregisterHotKey(self.hwnd, hotkey.id() as _) };
+
         if result == 0 {
             return Err(crate::Error::FailedToUnRegister(hotkey));
         }
+
         Ok(())
     }
 
@@ -133,6 +145,7 @@ impl GlobalHotKeyManager {
         for hotkey in hotkeys {
             self.register(*hotkey)?;
         }
+
         Ok(())
     }
 
@@ -140,6 +153,7 @@ impl GlobalHotKeyManager {
         for hotkey in hotkeys {
             self.unregister(*hotkey)?;
         }
+
         Ok(())
     }
 }
@@ -154,13 +168,16 @@ unsafe extern "system" fn global_hotkey_proc(
             id: wparam as _,
             state: crate::HotKeyState::Pressed,
         });
+
         std::thread::spawn(move || loop {
             let state = GetAsyncKeyState(HIWORD(lparam as u32) as i32);
+
             if state == 0 {
                 GlobalHotKeyEvent::send(GlobalHotKeyEvent {
                     id: wparam as _,
                     state: crate::HotKeyState::Released,
                 });
+
                 break;
             }
         });

@@ -159,11 +159,13 @@ impl GlobalHotKeyManager {
 
 	pub fn register_all(&self, hotkeys:&[HotKey]) -> crate::Result<()> {
 		self.platform_impl.register_all(hotkeys)?;
+
 		Ok(())
 	}
 
 	pub fn unregister_all(&self, hotkeys:&[HotKey]) -> crate::Result<()> {
 		self.platform_impl.unregister_all(hotkeys)?;
+
 		Ok(())
 	}
 }

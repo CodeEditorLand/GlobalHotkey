@@ -20,6 +20,7 @@ impl GlobalHotKeyManager {
 		for hotkey in hotkeys {
 			self.register(*hotkey)?;
 		}
+
 		Ok(())
 	}
 
@@ -27,6 +28,7 @@ impl GlobalHotKeyManager {
 		for hotkey in hotkeys {
 			self.unregister(*hotkey)?;
 		}
+
 		Ok(())
 	}
 }

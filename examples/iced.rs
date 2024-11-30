@@ -30,16 +30,22 @@ enum ProgramCommands {
 
 impl Application for Example {
 	type Executor = executor::Default;
+
 	type Flags = ();
+
 	type Message = ProgramCommands;
+
 	type Theme = Theme;
 
 	fn new(_flags:Self::Flags) -> (Example, iced::Command<Self::Message>) {
 		let manager = GlobalHotKeyManager::new().unwrap();
+
 		let hotkey_1 = HotKey::new(Some(Modifiers::CONTROL), Code::ArrowRight);
+
 		let hotkey_2 = HotKey::new(None, Code::ArrowUp);
 
 		manager.register(hotkey_1).unwrap();
+
 		manager.register(hotkey_2).unwrap();
 		(Example { last_pressed:"".to_string(), _manager:manager }, Command::none())
 	}
@@ -81,6 +87,7 @@ impl Example {
 							.await
 							.unwrap();
 					}
+
 					async_std::task::sleep(std::time::Duration::from_millis(50)).await;
 				}
 			}

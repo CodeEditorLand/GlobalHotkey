@@ -46,10 +46,12 @@ impl GlobalHotKeyManager {
             eventClass: kEventClassKeyboard,
             eventKind: kEventHotKeyPressed,
         };
+
         let released_event_type = EventTypeSpec {
             eventClass: kEventClassKeyboard,
             eventKind: kEventHotKeyReleased,
         };
+
         let event_types = [pressed_event_type, released_event_type];
 
         let ptr = unsafe {
@@ -82,15 +84,19 @@ impl GlobalHotKeyManager {
 
     pub fn register(&self, hotkey: HotKey) -> crate::Result<()> {
         let mut mods: u32 = 0;
+
         if hotkey.mods.contains(Modifiers::SHIFT) {
             mods |= 512;
         }
+
         if hotkey.mods.intersects(Modifiers::SUPER | Modifiers::META) {
             mods |= 256;
         }
+
         if hotkey.mods.contains(Modifiers::ALT) {
             mods |= 2048;
         }
+
         if hotkey.mods.contains(Modifiers::CONTROL) {
             mods |= 4096;
         }
@@ -107,12 +113,14 @@ impl GlobalHotKeyManager {
                     for c in "htrs".chars() {
                         res = (res << 8) + c as u32;
                     }
+
                     res
                 },
             };
 
             let ptr = unsafe {
                 let mut hotkey_ref: EventHotKeyRef = std::mem::zeroed();
+
                 let result = RegisterEventHotKey(
                     scan_code,
                     mods,
@@ -136,14 +144,17 @@ impl GlobalHotKeyManager {
                 .lock()
                 .unwrap()
                 .insert(hotkey.id(), HotKeyWrapper { ptr, hotkey });
+
             Ok(())
         } else if is_media_key(hotkey.key) {
             {
                 let mut media_hotkeys = self.media_hotkeys.lock().unwrap();
+
                 if !media_hotkeys.insert(hotkey) {
                     return Err(crate::Error::AlreadyRegistered(hotkey));
                 }
             }
+
             self.start_watching_media_keys()
         } else {
             Err(crate::Error::FailedToRegister(format!(
@@ -156,7 +167,9 @@ impl GlobalHotKeyManager {
     pub fn unregister(&self, hotkey: HotKey) -> crate::Result<()> {
         if is_media_key(hotkey.key) {
             let mut media_hotkey = self.media_hotkeys.lock().unwrap();
+
             media_hotkey.remove(&hotkey);
+
             if media_hotkey.is_empty() {
                 self.stop_watching_media_keys();
             }
@@ -171,6 +184,7 @@ impl GlobalHotKeyManager {
         for hotkey in hotkeys {
             self.register(*hotkey)?;
         }
+
         Ok(())
     }
 
@@ -178,6 +192,7 @@ impl GlobalHotKeyManager {
         for hotkey in hotkeys {
             self.unregister(*hotkey)?;
         }
+
         Ok(())
     }
 
@@ -195,6 +210,7 @@ impl GlobalHotKeyManager {
 
     fn start_watching_media_keys(&self) -> crate::Result<()> {
         let mut event_tap = self.event_tap.lock().unwrap();
+
         let mut event_tap_source = self.event_tap_source.lock().unwrap();
 
         if event_tap.is_some() || event_tap_source.is_some() {
@@ -203,6 +219,7 @@ impl GlobalHotKeyManager {
 
         unsafe {
             let event_mask: CGEventMask = CGEventMaskBit!(CGEventType::SystemDefined);
+
             let tap = CGEventTapCreate(
                 CGEventTapLocation::Session,
                 CGEventTapPlacement::HeadInsertEventTap,
@@ -211,15 +228,18 @@ impl GlobalHotKeyManager {
                 media_key_event_callback,
                 Arc::into_raw(self.media_hotkeys.clone()) as *const c_void,
             );
+
             if tap.is_null() {
                 return Err(crate::Error::FailedToWatchMediaKeyEvent);
             }
             *event_tap = Some(tap);
 
             let loop_source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0);
+
             if loop_source.is_null() {
                 // cleanup event_tap
                 CFMachPortInvalidate(tap);
+
                 CFRelease(tap as *const c_void);
                 *event_tap = None;
 
@@ -228,7 +248,9 @@ impl GlobalHotKeyManager {
             *event_tap_source = Some(loop_source);
 
             let run_loop = CFRunLoopGetMain();
+
             CFRunLoopAddSource(run_loop, loop_source, kCFRunLoopCommonModes);
+
             CGEventTapEnable(tap, true);
 
             Ok(())
@@ -239,11 +261,15 @@ impl GlobalHotKeyManager {
         unsafe {
             if let Some(event_tap_source) = self.event_tap_source.lock().unwrap().take() {
                 let run_loop = CFRunLoopGetMain();
+
                 CFRunLoopRemoveSource(run_loop, event_tap_source, kCFRunLoopCommonModes);
+
                 CFRelease(event_tap_source as *const c_void);
             }
+
             if let Some(event_tap) = self.event_tap.lock().unwrap().take() {
                 CFMachPortInvalidate(event_tap);
+
                 CFRelease(event_tap as *const c_void);
             }
         }
@@ -290,12 +316,15 @@ impl From<NX_KEYTYPE> for Code {
 impl Drop for GlobalHotKeyManager {
     fn drop(&mut self) {
         let hotkeys = self.hotkeys.lock().unwrap().clone();
+
         for (_, hotkeywrapper) in hotkeys {
             let _ = self.unregister(hotkeywrapper.hotkey);
         }
+
         unsafe {
             RemoveEventHandler(self.event_handler_ptr);
         }
+
         self.stop_watching_media_keys()
     }
 }
@@ -319,6 +348,7 @@ unsafe extern "C" fn hotkey_handler(
 
     if result == noErr as _ {
         let event_kind = GetEventKind(event);
+
         match event_kind {
             #[allow(non_upper_case_globals)]
             kEventHotKeyPressed => GlobalHotKeyEvent::send(GlobalHotKeyEvent {
@@ -348,30 +378,40 @@ unsafe extern "C" fn media_key_event_callback(
     }
 
     let ns_event: Retained<NSEvent> = msg_send_id![NSEvent::class(), eventWithCGEvent: event];
+
     let event_type = ns_event.r#type();
+
     let event_subtype = ns_event.subtype();
 
     if event_type == NSEventType::SystemDefined && event_subtype == NSEventSubtype::ScreenChanged {
         // Key
         let data_1 = ns_event.data1();
+
         let nx_keytype = NX_KEYTYPE::try_from((data_1 & 0xFFFF0000) >> 16);
+
         if nx_keytype.is_err() {
             return event;
         }
+
         let nx_keytype = nx_keytype.unwrap();
 
         // Modifiers
         let flags = ns_event.modifierFlags();
+
         let mut mods = Modifiers::empty();
+
         if flags.contains(NSEventModifierFlags::NSEventModifierFlagShift) {
             mods |= Modifiers::SHIFT;
         }
+
         if flags.contains(NSEventModifierFlags::NSEventModifierFlagControl) {
             mods |= Modifiers::CONTROL;
         }
+
         if flags.contains(NSEventModifierFlags::NSEventModifierFlagOption) {
             mods |= Modifiers::ALT;
         }
+
         if flags.contains(NSEventModifierFlags::NSEventModifierFlagCommand) {
             mods |= Modifiers::META;
         }
@@ -384,7 +424,9 @@ unsafe extern "C" fn media_key_event_callback(
 
         if let Some(media_hotkey) = media_hotkeys.lock().unwrap().get(&hotkey) {
             let key_flags = data_1 & 0x0000FFFF;
+
             let is_pressed: bool = ((key_flags & 0xFF00) >> 8) == 0xA;
+
             GlobalHotKeyEvent::send(GlobalHotKeyEvent {
                 id: media_hotkey.id(),
                 state: match is_pressed {
