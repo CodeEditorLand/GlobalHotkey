@@ -3,10 +3,10 @@
 // SPDX-License-Identifier: MIT
 
 use global_hotkey::{
-	hotkey::{Code, HotKey, Modifiers},
 	GlobalHotKeyEvent,
 	GlobalHotKeyManager,
 	HotKeyState,
+	hotkey::{Code, HotKey, Modifiers},
 };
 use tao::event_loop::{ControlFlow, EventLoopBuilder};
 

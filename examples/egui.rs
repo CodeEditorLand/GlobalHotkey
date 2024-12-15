@@ -3,7 +3,7 @@
 use std::time::Duration;
 
 use eframe::egui;
-use global_hotkey::{hotkey::HotKey, GlobalHotKeyEvent, GlobalHotKeyManager};
+use global_hotkey::{GlobalHotKeyEvent, GlobalHotKeyManager, hotkey::HotKey};
 use keyboard_types::{Code, Modifiers};
 
 fn main() -> Result<(), eframe::Error> {

@@ -1,17 +1,17 @@
 use global_hotkey::{
-	hotkey::{Code, HotKey, Modifiers},
 	GlobalHotKeyEvent,
 	GlobalHotKeyManager,
+	hotkey::{Code, HotKey, Modifiers},
 };
 use iced::{
-	executor,
-	futures::SinkExt,
-	widget::{container, row, text},
 	Application,
 	Command,
 	Element,
 	Subscription,
 	Theme,
+	executor,
+	futures::SinkExt,
+	widget::{container, row, text},
 };
 
 fn main() -> iced::Result { Example::run(iced::Settings::default()) }
@@ -30,11 +30,8 @@ enum ProgramCommands {
 
 impl Application for Example {
 	type Executor = executor::Default;
-
 	type Flags = ();
-
 	type Message = ProgramCommands;
-
 	type Theme = Theme;
 
 	fn new(_flags:Self::Flags) -> (Example, iced::Command<Self::Message>) {

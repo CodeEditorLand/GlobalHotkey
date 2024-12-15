@@ -24,8 +24,8 @@
 //!
 //! ```no_run
 //! use global_hotkey::{
-//! 	hotkey::{Code, HotKey, Modifiers},
 //! 	GlobalHotKeyManager,
+//! 	hotkey::{Code, HotKey, Modifiers},
 //! };
 //!
 //! // initialize the hotkeys manager
@@ -57,7 +57,7 @@
 //! - macOS
 //! - Linux (X11 Only)
 
-use crossbeam_channel::{unbounded, Receiver, Sender};
+use crossbeam_channel::{Receiver, Sender, unbounded};
 use once_cell::sync::{Lazy, OnceCell};
 
 mod error;
