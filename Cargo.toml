@@ -21,8 +21,11 @@ thiserror = { version = "1" }
 serde = { version = "1", optional = true, features = ["derive"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
-objc2 = { version = "0.5.2" }
-objc2-app-kit = { version = "0.2.2", features = ["NSEvent"] }
+objc2 = "0.5.2"
+objc2-app-kit = { version = "0.2.2", default-features = false, features = [
+  "std",
+  "NSEvent",
+] }
 
 [target.'cfg(target_os = "windows")'.dependencies.windows-sys]
 version = "0.59"
@@ -39,8 +42,8 @@ features = [
 x11-dl = "2.21"
 
 [dev-dependencies]
-winit = { version = "0.29" }
-tao = { version = "0.30" }
-eframe = { version = "0.27" }
-iced = { version = "0.12.1" }
+winit = "0.30"
+tao = "0.30"
+eframe = "0.27"
+iced = "0.12.1"
 async-std = "1.12.0"

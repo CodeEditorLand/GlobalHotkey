@@ -8,38 +8,65 @@ use global_hotkey::{
 	HotKeyState,
 	hotkey::{Code, HotKey, Modifiers},
 };
-use winit::event_loop::{ControlFlow, EventLoopBuilder};
+use winit::{
+    application::ApplicationHandler,
+    event::WindowEvent,
+    event_loop::{ActiveEventLoop, EventLoop},
+    window::WindowId,
+};
 
 fn main() {
-	let event_loop = EventLoopBuilder::new().build().unwrap();
-
-	let hotkeys_manager = GlobalHotKeyManager::new().unwrap();
+    let hotkeys_manager = GlobalHotKeyManager::new().unwrap();
 
 	let hotkey = HotKey::new(Some(Modifiers::SHIFT), Code::KeyD);
 
 	let hotkey2 = HotKey::new(Some(Modifiers::SHIFT | Modifiers::ALT), Code::KeyD);
 
-	let hotkey3 = HotKey::new(None, Code::KeyF);
+    let event_loop = EventLoop::<AppEvent>::with_user_event().build().unwrap();
+    let proxy = event_loop.create_proxy();
 
-	hotkeys_manager.register(hotkey).unwrap();
+    GlobalHotKeyEvent::set_event_handler(Some(move |event| {
+        let _ = proxy.send_event(AppEvent::HotKey(event));
+    }));
 
-	hotkeys_manager.register(hotkey2).unwrap();
+    let mut app = App {
+        hotkeys_manager,
+        hotkey2,
+    };
 
-	hotkeys_manager.register(hotkey3).unwrap();
+    event_loop.run_app(&mut app).unwrap()
+}
 
-	let global_hotkey_channel = GlobalHotKeyEvent::receiver();
+#[derive(Debug)]
+enum AppEvent {
+    HotKey(GlobalHotKeyEvent),
+}
 
-	event_loop
-		.run(move |_event, event_loop| {
-			event_loop.set_control_flow(ControlFlow::Poll);
+struct App {
+    hotkeys_manager: GlobalHotKeyManager,
+    hotkey2: HotKey,
+}
 
-			if let Ok(event) = global_hotkey_channel.try_recv() {
-				println!("{event:?}");
+impl ApplicationHandler<AppEvent> for App {
+    fn resumed(&mut self, _event_loop: &ActiveEventLoop) {}
 
-				if hotkey2.id() == event.id && event.state == HotKeyState::Released {
-					hotkeys_manager.unregister(hotkey2).unwrap();
-				}
-			}
-		})
-		.unwrap();
+    fn window_event(
+        &mut self,
+        _event_loop: &ActiveEventLoop,
+        _window_id: WindowId,
+        _event: WindowEvent,
+    ) {
+    }
+
+    fn user_event(&mut self, _event_loop: &ActiveEventLoop, event: AppEvent) {
+        match event {
+            AppEvent::HotKey(event) => {
+                println!("{event:?}");
+
+                if self.hotkey2.id() == event.id && event.state == HotKeyState::Released {
+                    self.hotkeys_manager.unregister(self.hotkey2).unwrap();
+                }
+            }
+        }
+    }
 }
