@@ -22,13 +22,13 @@ path = "Source/lib.rs"
 categories = ["gui"]
 description = "Global hotkeys for Desktop Applications"
 documentation = "https://docs.rs/global-hotkey"
-edition = "2021"
+edition = "2024"
 keywords = ["windowing", "global", "global-hotkey", "hotkey"]
 license-file = "LICENSE"
 name = "global-hotkey"
 readme = "README.md"
 repository = "https://github.com/amrbashir/global-hotkey"
-rust-version = "1.71"
+rust-version = "1.85.0"
 version = "0.6.3"
 
 [target]
